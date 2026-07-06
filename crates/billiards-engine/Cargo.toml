@@ -1,0 +1,10 @@
+[package]
+name = "billiards-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+billiards-core = { workspace = true }
+glam = { workspace = true }
+roots = "0.0.8"

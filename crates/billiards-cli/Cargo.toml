@@ -1,0 +1,19 @@
+[package]
+name = "billiards-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "billiards"
+path = "src/main.rs"
+
+[dependencies]
+billiards-core = { workspace = true }
+billiards-engine = { workspace = true }
+glam = { workspace = true }
+billiards-vision = { workspace = true, optional = true, features = ["onnx"] }
+image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+
+[features]
+track = ["dep:billiards-vision", "dep:image"]

@@ -1,0 +1,15 @@
+[package]
+name = "billiards-solver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+billiards-core = { workspace = true }
+billiards-engine = { workspace = true }
+glam = { workspace = true }
+
+# Parallelism is native-only: on wasm the same code runs through a sequential
+# shim (src/par.rs) — browsers get threads later via wasm-bindgen-rayon + COOP/COEP.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = "1"

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Billiards Coach</title>
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #101010; }
+        canvas { width: 100%; height: 100%; display: block; }
+        #loading { color: #999; font: 14px system-ui; position: absolute; top: 45%; width: 100%; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="loading">loading billiards coach…</div>
+    <canvas id="viewer_canvas"></canvas>
+    <script type="module">
+        // __V__ is stamped per build so a redeploy can never pair a cached old
+        // JS with a new wasm (which fails silently as a blank page).
+        const err = m => { const el = document.getElementById("loading"); if (el) el.textContent = m; };
+        window.addEventListener("error", e => err("error: " + e.message));
+        try {
+            const mod = await import("./billiards_viewer.js?v=__V__");
+            await mod.default("./billiards_viewer_bg.wasm?v=__V__");
+            document.getElementById("loading")?.remove();
+        } catch (e) { err("failed to start: " + e); }
+    </script>
+</body>
+</html>

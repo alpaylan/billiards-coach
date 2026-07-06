@@ -1,0 +1,40 @@
+[package]
+name = "billiards-vision"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+billiards-core = { workspace = true }
+
+# ONNX Runtime linkage differs per OS. macOS: pyke's prebuilt STATIC lib
+# references libc++ `to_chars` overloads Apple's SDK never shipped, so we
+# dlopen a runtime dylib instead (set ORT_DYLIB_PATH, e.g. to the pip wheel's).
+# Linux (the deployment target): the normal static link works — one binary,
+# no runtime dependency. `ort` pinned =rc.10: rc.12 doesn't compile with
+# default features off.
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { version = "=2.0.0-rc.10", optional = true, default-features = false, features = ["load-dynamic", "ndarray"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+ort = { version = "=2.0.0-rc.10", optional = true, features = ["ndarray"] }
+
+[dev-dependencies]
+billiards-engine = { workspace = true }
+billiards-solver = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[features]
+onnx = ["dep:ort"]
+
+[[example]]
+name = "onnx_detect"
+required-features = ["onnx"]
+
+[[example]]
+name = "track_frames"
+required-features = ["onnx"]
+
+[[example]]
+name = "snapshot_tracks"
+required-features = ["onnx"]

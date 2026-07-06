@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/billiards-core",
+    "crates/billiards-engine",
+    "crates/billiards-solver",
+    "crates/billiards-vision",
+    "crates/billiards-cli",
+    "crates/billiards-ui",
+    "crates/billiards-viewer",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/alpaylan/billiards-coach"
+
+[workspace.dependencies]
+glam = "0.29"
+billiards-core = { path = "crates/billiards-core" }
+billiards-engine = { path = "crates/billiards-engine" }
+billiards-solver = { path = "crates/billiards-solver" }
+billiards-vision = { path = "crates/billiards-vision" }

@@ -1,0 +1,31 @@
+# Rust
+/target
+
+# Real footage, tracked matches, frames — kept on disk, never in git
+# (hard rule: examples/demos run on real data that lives locally)
+/data/
+/python/data/
+
+# Generated comparison videos / example renders
+/media/
+
+# Web build output (wasm + the published bundle with per-shot MP4s)
+/web/dist/
+/.wrangler/
+/web/watcher/node_modules/
+/web/watcher/.wrangler/
+
+# Python
+__pycache__/
+*.pyc
+
+# Model weights: training artifacts stay local (regenerable via
+# finetune_detector.py). The deployable ONNX export IS tracked:
+# python/detector.onnx (76 MB) is what CI and the Rust tracker run.
+*.pt
+
+# Diagnostic images the python workbench regenerates
+/python/*.png
+
+# macOS
+.DS_Store

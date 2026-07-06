@@ -1,0 +1,5 @@
+# Python CV/ML side of billiards-coach (polyglot: prototype/train here, run in Rust via ONNX).
+numpy>=2.0
+opencv-python-headless>=4.9
+yt-dlp>=2026.1
+Pillow>=10

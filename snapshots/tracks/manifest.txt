@@ -1,0 +1,13 @@
+# Tracker snapshot sample: NAME FRAMES_DIR "corners" orient
+# One or two shots per game, plus known-tricky cases (fast strokes, swaps,
+# corner balls). Inference ~45 s per entry — keep this curated, not exhaustive.
+day00_s23   data/masa4_day/game_00_frames/shot_23   "19,19 264,15 270,492 23,492" vertical
+day00_s35   data/masa4_day/game_00_frames/shot_35   "19,19 264,15 270,492 23,492" vertical
+day01_s02   data/masa4_day/game_01_frames/shot_02   "19,19 264,15 270,492 23,492" vertical
+day02_s20   data/masa4_day/game_02_frames/shot_20   "19,19 264,15 270,492 23,492" vertical
+day02_s93   data/masa4_day/game_02_frames/shot_93   "19,19 264,15 270,492 23,492" vertical
+day03_s05   data/masa4_day/game_03_frames/shot_05   "19,19 264,15 270,492 23,492" vertical
+day03_s101  data/masa4_day/game_03_frames/shot_101  "19,19 264,15 270,492 23,492" vertical
+day04_s112  data/masa4_day/game_04_frames/shot_112  "19,19 264,15 270,492 23,492" vertical
+cur_s12     data/masa4/game_00_frames/shot_12       "19,19 264,15 270,492 23,492" vertical
+cur_s15     data/masa4/game_00_frames/shot_15       "19,19 264,15 270,492 23,492" vertical

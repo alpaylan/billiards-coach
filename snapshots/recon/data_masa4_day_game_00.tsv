@@ -1,0 +1,106 @@
+shot_00.shot	cue=white	aim=191.4	speed=1.67	eng=+38	fol=-32	cue_rms=139	obj_rms=230	pen=0.00	x02@0.40 r0-y@0.51 r0-x@4.06 r0+y@6.35
+shot_01.shot	cue=yellow	aim=68.3	speed=2.75	eng=+23	fol=-4	cue_rms=166	obj_rms=181	pen=0.00	x01@0.24 r1+y@0.33 r0+y@0.41 r0+x@1.60 r1-y@2.34 r0-y@2.53 x02@4.67 r2+y@5.79 x12@6.54 r0-x@6.90 r2-x@7.33
+shot_02.shot	cue=yellow	aim=62.7	speed=1.98	eng=+44	fol=+1	cue_rms=162	obj_rms=184	pen=0.00	x01@0.20 r1+y@0.25 r0+y@0.41 r1-x@1.10 r0+x@2.54 r1-y@3.00 r0-y@3.77 x02@7.12 r2-x@7.78
+shot_03.shot	cue=yellow	aim=347.7	speed=3.61	eng=+0	fol=+50	cue_rms=829	obj_rms=421	pen=1.40	x02@0.05 x12@0.09 r1-y@0.56 r2+y@0.79 r2+x@1.47 x02@1.86 r1+y@2.04 r0+x@2.18 r1-y@5.05 r2-x@5.52 r0-y@5.60 r0-x@6.59 r2+y@6.69
+shot_04.shot	cue=yellow	aim=211.0	speed=5.25	eng=-50	fol=-0	cue_rms=700	obj_rms=1625	pen=0.70	r0-y@0.31 r0-x@0.79 r0+y@1.80 r0+x@3.38
+shot_05.shot	cue=white	aim=165.0	speed=6.24	eng=+15	fol=-17	cue_rms=694	obj_rms=638	pen=3.02	r0+y@0.37 r0-x@0.46 x02@1.29 r0+x@1.33 r2+x@1.40 r2-y@2.10 r0+y@2.26 r0-x@3.36 x01@4.67 r0-y@5.15 r2+y@5.65 x01@6.12
+shot_06.shot	cue=white	aim=29.8	speed=3.57	eng=+32	fol=+10	cue_rms=179	obj_rms=193	pen=0.00	r0+y@0.21 x02@0.28 r0+y@0.47 r2+x@0.84 r0+x@0.99 r2-y@1.19 r0-y@3.01 r2+y@3.73 r0-x@4.87 r2-x@5.29 r0+y@6.66
+shot_07.shot	cue=yellow	aim=163.4	speed=3.51	eng=-31	fol=+10	cue_rms=125	obj_rms=154	pen=0.02	x02@0.31 r2-x@0.65 r0+y@0.92 r0-x@1.18 r0-y@2.56 r2+x@3.08 x01@3.47 r1+x@5.48 r2-y@5.56 r0+y@5.94 r2-x@8.63
+shot_08.shot	cue=yellow	aim=313.7	speed=3.81	eng=-40	fol=-4	cue_rms=154	obj_rms=127	pen=0.00	x01@0.15 r0+x@0.37 r1-y@0.43 r0+y@1.06 r1+y@1.33 r0-x@2.67 r1-y@2.92 r0-y@3.49 r1+y@6.27 r0+y@7.30 r0+x@7.30
+shot_09.shot	cue=white	aim=204.8	speed=2.74	eng=-49	fol=+3	cue_rms=203	obj_rms=197	pen=0.38	x02@0.69 r2-y@0.89 r0-x@1.15 r0-y@1.84 r2-x@2.40 r2+y@3.42 r0+x@4.56 x01@5.28 r1+y@6.22
+shot_10.shot	cue=yellow	aim=210.0	speed=3.30	eng=+20	fol=+0	cue_rms=172	obj_rms=148	pen=0.00	x02@0.53 r0-y@0.81 r2-x@1.20 r0-x@2.08 r0+y@2.67 r2+x@4.77 r0-y@6.26 x02@6.64
+shot_100.shot	cue=yellow	aim=175.5	speed=3.21	eng=-14	fol=+6	cue_rms=133	obj_rms=123	pen=0.02	x01@0.30 r0+y@0.59 r0-x@0.88 r1-x@1.30 r1-y@1.69 r0-y@2.31 r0+x@4.32 r0+y@5.10 x02@6.71 r1+y@8.85
+shot_101.shot	cue=yellow	aim=45.6	speed=3.20	eng=+36	fol=-5	cue_rms=90	obj_rms=236	pen=0.00	x01@0.33 r0+y@0.48 r1+x@0.58 r0+x@1.10 r1+y@1.58 r0-y@1.99 r1-x@4.16 r0+y@4.88 x12@7.26
+shot_102.shot	cue=white	aim=347.5	speed=2.65	eng=-32	fol=+32	cue_rms=146	obj_rms=199	pen=0.00	x02@0.07 r0-y@0.77 r0+x@0.89 r2+y@0.99 r0+y@2.13 x01@3.11 r1-x@3.47 r0-x@3.55 r2+x@4.75 r1-y@4.77 x01@6.06 r2-y@6.63
+shot_103.shot	cue=white	aim=356.5	speed=3.58	eng=-50	fol=-0	cue_rms=289	obj_rms=508	pen=0.18	x02@0.54 r2+x@0.71 r0-y@0.76 r0+x@0.87 r0+y@2.07 r2+y@3.24 r2-x@3.46 r0-x@3.66 r0-y@4.16 x01@5.10 x12@5.42 r0+x@12.23
+shot_104.shot	cue=yellow	aim=118.9	speed=3.87	eng=-0	fol=+33	cue_rms=75	obj_rms=91	pen=0.03	x02@0.27 r2+y@0.36 r0+y@0.63 r0-x@0.95 r2-y@1.10 r2+y@2.33 r0-y@2.46 x01@3.31 r1+x@3.86 r2-y@4.67 r0+x@5.54 r0+y@6.31
+shot_105.shot	cue=yellow	aim=166.3	speed=3.86	eng=-37	fol=+13	cue_rms=840	obj_rms=253	pen=0.03	x02@0.25 r0+y@0.44 r2-x@0.90 r0-x@1.22 r0-y@1.74 x01@2.32 r2-y@2.66 r2+x@3.50 r1+y@4.28 r1+x@4.77 r2+y@8.77 r2-x@10.89
+shot_106.shot	cue=yellow	aim=169.1	speed=5.88	eng=+28	fol=+3	cue_rms=115	obj_rms=278	pen=0.00	x01@0.09 r1-y@0.32 r0+y@0.42 r1-x@0.44 r0-y@1.24 r1+y@1.34 r1+x@1.99 r0+y@2.72 r1-y@2.81 r1-x@4.79 r1+y@5.03 r0-y@5.69 r1-y@8.64 r1+x@11.83
+shot_107.shot	cue=white	aim=161.2	speed=3.70	eng=+0	fol=-7	cue_rms=287	obj_rms=677	pen=1.13	x01@0.91 r0+y@1.01 r1-x@1.03 r0-x@1.03 x01@1.28 x02@1.86 r1-y@2.75 r2-y@3.73 x01@4.67 r1+y@8.67
+shot_109.shot	cue=yellow	aim=97.7	speed=2.02	eng=-39	fol=-7	cue_rms=92	obj_rms=55	pen=0.00	x01@0.20 r0+y@0.32 r1+y@0.56 r1+x@1.98 r0-y@2.27 r0-x@3.01
+shot_11.shot	cue=white	aim=149.0	speed=3.26	eng=+17	fol=+39	cue_rms=543	obj_rms=686	pen=1.42	r0+y@0.35 r0-x@0.41 r0-y@2.07 x01@2.25 r1+x@2.95 r0+x@3.39 r1+y@7.48
+shot_110.shot	cue=white	aim=173.5	speed=4.62	eng=+2	fol=-46	cue_rms=446	obj_rms=97	pen=0.05	x01@0.30 r0+y@0.62 r0-x@0.69 r1-y@1.13 x12@1.57 r0-y@1.91 r1-x@2.73 r0+x@2.82 r0+y@3.80 r2+y@5.20 r0-x@6.67 r0-y@6.83 r0+y@13.39
+shot_111.shot	cue=yellow	aim=329.0	speed=2.58	eng=+42	fol=+2	cue_rms=165	obj_rms=104	pen=0.00	x01@0.20 r1-y@0.71 r0+x@1.43 r0-y@2.21 r1+y@3.50 r0-x@4.92 x02@5.52 r2+y@5.74 x02@6.07
+shot_112.shot	cue=yellow	aim=320.7	speed=2.88	eng=+22	fol=+5	cue_rms=144	obj_rms=82	pen=0.00	x01@0.35 r1-y@0.84 r0+x@1.21 r0-y@2.11 r1+y@2.95 r0-x@4.82 r0+y@6.38
+shot_113.shot	cue=yellow	aim=120.4	speed=3.58	eng=+50	fol=+0	cue_rms=148	obj_rms=216	pen=0.02	x01@0.20 r0+y@0.72 r1+y@0.94 r1-x@1.13 r0+x@1.43 x12@1.52 r0-y@2.15 r1-y@2.99 r0+y@4.30 r1+x@4.67 r1+y@6.28 r0-x@6.31
+shot_114.shot	cue=yellow	aim=115.3	speed=2.45	eng=-36	fol=+3	cue_rms=110	obj_rms=142	pen=0.03	x02@0.30 r0+y@0.56 r2-x@0.76 r2+y@1.47 r0-x@1.85 r0-y@2.29 x01@3.61
+shot_115.shot	cue=yellow	aim=355.6	speed=5.35	eng=-0	fol=+5	cue_rms=147	obj_rms=164	pen=0.83	r0+x@0.45 x02@0.55 r0+y@0.96 r2-y@1.04 r0-x@1.98 r2+y@2.70 r0-y@3.00 r2-x@4.41 r0+x@5.57 r0+y@6.50 r2-y@8.95
+shot_116.shot	cue=white	aim=21.6	speed=3.30	eng=+17	fol=-19	cue_rms=148	obj_rms=44	pen=0.03	r0+y@0.52 r0+x@0.63 r0-y@2.07 x01@2.43 r1-x@3.32 x01@4.04 r0+y@6.31
+shot_117.shot	cue=yellow	aim=246.4	speed=4.27	eng=-26	fol=-34	cue_rms=241	obj_rms=495	pen=1.42	x01@0.17 r1-y@0.36 r1-x@0.36 r1+y@1.13 r1-y@2.46 r1+x@2.62 r0+x@2.94 r0+y@3.62 x01@5.68 r0-x@8.35 r0-y@9.73 x02@10.69
+shot_12.shot	cue=white	aim=167.7	speed=1.92	eng=-48	fol=+4	cue_rms=136	obj_rms=159	pen=0.07	x01@0.38 r0+y@0.65 r0-x@2.28 r0-y@3.48 x02@3.91 r1-y@4.08 r1-x@5.12 r0+x@7.94
+shot_13.shot	cue=white	aim=175.5	speed=3.86	eng=-1	fol=+2	cue_rms=203	obj_rms=141	pen=0.02	x01@0.59 r0-x@0.82 r1-y@1.48 r0+y@1.51 r1-x@1.71 r0+x@2.88 r0-y@4.18 r1+y@6.31 r0-x@7.28 r0+y@8.17 x02@11.27
+shot_14.shot	cue=white	aim=327.9	speed=3.21	eng=+23	fol=-34	cue_rms=98	obj_rms=479	pen=1.80	x02@0.14 r0-y@0.87 r2+x@1.03 r0-x@2.11 x12@2.82 r0+y@3.40 r2-x@3.79 x01@3.86 r1+y@4.62 r0-y@8.83
+shot_15.shot	cue=yellow	aim=278.8	speed=3.10	eng=+48	fol=+1	cue_rms=213	obj_rms=134	pen=0.03	x01@0.33 r1-y@0.40 r0-y@0.49 r0-x@1.60 r1+y@1.74 r0+y@2.45 r1+x@2.60 x01@5.12 r0-y@5.19 r1-y@5.37 r1+x@6.59
+shot_16.shot	cue=white	aim=63.4	speed=3.41	eng=-2	fol=-19	cue_rms=208	obj_rms=693	pen=0.70	x02@0.03 r0+x@0.08 r0+y@1.09 r0-x@2.05 r2+y@2.29 r0-y@3.36 r0+x@5.86 r0+y@6.73 x01@7.41
+shot_18.shot	cue=white	aim=94.5	speed=3.21	eng=-38	fol=+23	cue_rms=159	obj_rms=301	pen=0.00	x02@0.19 r2+y@0.43 r0+y@0.95 r2-y@1.35 r0-x@1.71 r0-y@2.86 r2+y@2.96 r0+x@5.98 r0+y@6.07 r2-y@6.37
+shot_19.shot	cue=yellow	aim=217.4	speed=3.01	eng=+29	fol=+15	cue_rms=73	obj_rms=121	pen=0.00	x01@0.55 r0-y@0.77 r1-x@1.13 r1-y@1.85 r0-x@1.94 r0+y@2.46 r1+x@4.92 r0-y@5.71
+shot_20.shot	cue=white	aim=330.2	speed=4.49	eng=+22	fol=+29	cue_rms=181	obj_rms=179	pen=0.03	x02@0.30 r0-y@0.37 r2+x@0.44 r0+y@1.16 r2-x@1.73 r0-y@2.70 x01@3.82 r2+x@3.93 r0+x@4.16 r2-x@8.46
+shot_21.shot	cue=white	aim=179.5	speed=4.94	eng=-21	fol=-1	cue_rms=111	obj_rms=341	pen=0.15	x02@0.41 r2-x@0.65 r2-y@0.97 r0+y@1.03 r0-x@1.10 r2+x@2.27 r0-y@2.61 r2+y@3.65 r0+x@4.51 x01@4.77 r2-x@5.45 r0+y@5.61 r1+y@6.36 r2-y@6.98 x02@11.14
+shot_22.shot	cue=white	aim=186.7	speed=2.90	eng=-14	fol=+33	cue_rms=347	obj_rms=587	pen=0.03	x02@0.09 r0-y@0.67 r2+y@0.83 r0-x@1.53 r2-x@2.42 x01@3.08 r0+y@3.50 r2-y@3.60 x12@6.67 r0+x@7.60 r0-y@9.24
+shot_23.shot	cue=white	aim=179.2	speed=4.33	eng=-20	fol=+7	cue_rms=186	obj_rms=231	pen=0.22	x02@0.17 r2-y@0.18 r0+y@1.07 r0-x@1.17 r2+y@1.28 r2-x@1.68 r0-y@2.37 r0+x@3.93 x01@4.31 r1+y@4.45 x01@4.62 r2-y@5.22
+shot_24.shot	cue=white	aim=194.9	speed=5.58	eng=-17	fol=+33	cue_rms=225	obj_rms=485	pen=0.12	x01@0.22 r1-y@0.47 r0+y@0.62 r0-x@0.71 r1-x@0.77 r1+y@1.14 r0-y@1.66 x02@1.78 r1-y@2.33 r2+x@2.62 x12@2.98 r2+x@3.65 r0+y@4.32 x02@5.56 r1+y@7.21
+shot_25.shot	cue=white	aim=150.1	speed=2.75	eng=-31	fol=+3	cue_rms=213	obj_rms=163	pen=0.02	r0+y@0.33 x01@0.41 r0+y@0.62 r1-y@1.68 r0-x@1.89 r1-x@3.00 r1+y@4.24 r0-y@4.51 r0+x@6.78 r0+y@10.46
+shot_26.shot	cue=yellow	aim=73.1	speed=4.59	eng=+13	fol=+18	cue_rms=230	obj_rms=167	pen=0.02	x01@0.20 r1+y@0.23 r0+y@0.38 r0+x@0.57 r1-y@0.82 r1+y@1.78 r0-y@1.90 r0-x@3.10 r1-y@3.52 r0+y@4.22 x01@5.56 r1+x@8.98
+shot_27.shot	cue=white	aim=178.3	speed=2.55	eng=+21	fol=+1	cue_rms=112	obj_rms=222	pen=0.00	x01@0.33 r1+y@1.34 r0-y@1.38 r0-x@2.20 r1-x@2.76 r0+y@4.39 r1-y@4.89 x02@7.76 r0+x@8.31
+shot_28.shot	cue=white	aim=153.3	speed=3.67	eng=+32	fol=-16	cue_rms=129	obj_rms=172	pen=1.55	x01@0.16 r1+y@0.64 r0-y@0.88 r0-x@1.32 r1-y@2.00 r0+y@3.05 r0+x@4.48 r1+y@4.60 x02@4.92 r0-y@6.65 x01@10.93 r1-x@11.24 x01@11.47
+shot_29.shot	cue=white	aim=81.9	speed=5.93	eng=-34	fol=+1	cue_rms=956	obj_rms=728	pen=0.82	r0+y@0.10 x01@0.21 r1-x@0.22 r0-y@0.44 r0+y@0.94 r1-y@1.55 r0-y@1.78 r1+x@2.18 x12@2.34 r0+y@3.29 x01@4.04 r1-x@5.77
+shot_30.shot	cue=yellow	aim=35.9	speed=3.17	eng=+33	fol=-3	cue_rms=210	obj_rms=71	pen=0.02	r0+y@0.64 r0+x@1.10 r0-y@1.94 r0-x@3.47 r0+y@3.85 r0-y@6.86 x01@7.61 r1+x@8.52 x12@9.24
+shot_33.shot	cue=yellow	aim=145.4	speed=3.16	eng=+45	fol=-10	cue_rms=223	obj_rms=169	pen=0.70	x02@0.23 r0-x@1.35 r0+y@1.52 r2+y@1.83 r0-y@3.18 r0+x@4.13
+shot_34.shot	cue=white	aim=62.3	speed=3.27	eng=+46	fol=+0	cue_rms=184	obj_rms=484	pen=0.20	x02@0.09 r2+x@0.17 r0+y@0.56 r0+x@0.75 r0-y@1.66 x01@3.04 r2-x@3.71 r1+y@3.73 x01@4.52 r0-x@7.04
+shot_35.shot	cue=white	aim=1.1	speed=4.82	eng=-0	fol=-0	cue_rms=530	obj_rms=581	pen=0.12	x02@0.53 r2+x@0.60 r0+y@0.64 r0+x@0.68 r0-y@1.96 r2-y@1.99 r2-x@2.55 x02@3.61 r0+y@3.96 x02@4.40 x12@4.71
+shot_37.shot	cue=white	aim=114.7	speed=3.84	eng=+27	fol=-31	cue_rms=75	obj_rms=100	pen=0.00	x01@0.19 r0+y@0.39 r1+y@0.41 r1-x@1.10 r0+x@1.30 r0-y@1.76 r1-y@1.90 r0+y@3.95 r1+y@4.33 r1+x@4.88 r0-x@5.34 x02@7.75
+shot_38.shot	cue=white	aim=8.0	speed=2.92	eng=+21	fol=+16	cue_rms=160	obj_rms=113	pen=0.03	x01@0.56 r0+y@0.97 r1+x@1.14 r0+x@1.38 r1-y@2.95 r0-y@2.99 r1-x@5.83 r0-x@5.84 r0+y@6.54
+shot_39.shot	cue=yellow	aim=247.3	speed=2.73	eng=-30	fol=-17	cue_rms=53	obj_rms=155	pen=0.00	x02@0.21 r2-x@0.77 r0-y@0.91 r2-y@2.07 r0+x@3.04 r0+y@3.28 x01@5.95 r2+x@6.34 r0-y@7.36
+shot_40.shot	cue=yellow	aim=144.8	speed=2.58	eng=-36	fol=+1	cue_rms=126	obj_rms=72	pen=0.00	x01@0.12 r0-x@0.75 r1+y@0.79 r0-y@1.57 r1-y@2.88 r0+x@4.46 r0+y@5.77
+shot_41.shot	cue=white	aim=287.8	speed=2.07	eng=-8	fol=+1	cue_rms=67	obj_rms=81	pen=0.00	x01@0.36 r0-y@1.21 r1-y@1.47 r0+x@2.91 r0+y@3.96
+shot_45.shot	cue=yellow	aim=334.2	speed=3.89	eng=-33	fol=+15	cue_rms=42	obj_rms=15	pen=0.02	x01@0.09 r0-y@0.42 r0+x@0.57 r0+y@1.25 r1+y@1.31 r0-x@2.28 r0-y@2.59 r1+x@2.93 r0+y@4.60 r0+x@5.43 x02@6.53
+shot_46.shot	cue=yellow	aim=334.2	speed=4.01	eng=+3	fol=+35	cue_rms=97	obj_rms=69	pen=0.02	x01@0.08 r0-y@0.40 r0+x@0.53 r0+y@1.29 r1+y@1.36 r0-x@2.56 r0-y@2.87 r1+x@3.26 r0+y@5.28 r0+x@6.46 x02@7.88
+shot_47.shot	cue=yellow	aim=250.7	speed=2.63	eng=+20	fol=+8	cue_rms=169	obj_rms=277	pen=0.00	x02@0.05 r2-y@0.77 r2+x@1.05 r0-y@1.08 r0-x@1.97 r0+y@3.28 r2+y@3.43 r0+x@6.30 r0-y@6.86 x01@7.77 x02@10.86
+shot_50.shot	cue=yellow	aim=29.8	speed=2.74	eng=-23	fol=+39	cue_rms=505	obj_rms=567	pen=0.78	x02@0.18 r0+y@0.60 r2+x@0.68 r0-y@2.40 x01@3.16 r2-x@3.41 x02@7.92 r2+x@11.85
+shot_51.shot	cue=yellow	aim=30.2	speed=4.36	eng=-10	fol=+26	cue_rms=78	obj_rms=108	pen=0.02	x02@0.25 r2+x@0.34 r0+y@0.44 r0+x@1.08 r0-y@1.35 r2-x@1.80 r0+y@3.34 r2+x@4.33 r0-y@9.34 r2-x@10.25
+shot_52.shot	cue=white	aim=172.9	speed=4.88	eng=-15	fol=+1	cue_rms=227	obj_rms=228	pen=0.73	x02@0.45 r2-x@0.57 r0+y@1.05 r0-x@1.18 r2+x@1.66 r2-x@3.50 r0-y@3.74 r2+x@7.01 r0+x@8.02 r0+y@10.02
+shot_53.shot	cue=yellow	aim=80.4	speed=3.54	eng=-46	fol=+1	cue_rms=211	obj_rms=442	pen=0.20	x02@0.27 r2+y@0.44 r0+y@0.66 r0-x@1.30 r2-y@1.53 r0-y@2.33 r2+x@2.36 x01@3.73 r2+y@4.00 r1+y@4.83 r0+x@5.40 r0+y@7.59
+shot_54.shot	cue=yellow	aim=285.2	speed=4.47	eng=+23	fol=-30	cue_rms=149	obj_rms=378	pen=0.00	x02@0.24 r2-y@0.33 r0-y@0.58 r2+x@0.68 r2+y@1.04 r0-x@1.88 r2-y@2.32 r0+y@3.24 r2-x@4.24 x01@5.04 r2+y@5.60 r1+x@6.37
+shot_55.shot	cue=yellow	aim=269.8	speed=2.09	eng=+36	fol=+3	cue_rms=127	obj_rms=195	pen=0.00	x01@0.16 r1-y@0.46 r0-y@0.61 r1+x@0.62 r0-x@3.31 r1+y@3.57 r0+y@3.70 x02@4.89 x12@6.40
+shot_56.shot	cue=yellow	aim=2.8	speed=3.72	eng=+36	fol=+17	cue_rms=176	obj_rms=177	pen=0.00	x02@0.22 r2+x@0.74 r0+y@0.83 r0+x@1.17 r2-y@1.29 r0-y@2.50 r2-x@3.51 x02@3.85 r2-x@4.36 r0+y@4.67 r0-y@8.03
+shot_57.shot	cue=white	aim=133.9	speed=2.99	eng=-16	fol=+17	cue_rms=280	obj_rms=881	pen=0.00	x02@0.43 r2+y@0.53 x02@0.67 r2-x@1.02 r0-x@1.05 r0-y@1.92 r0+y@5.34
+shot_58.shot	cue=yellow	aim=130.6	speed=3.00	eng=-33	fol=-14	cue_rms=96	obj_rms=108	pen=0.02	r0+y@0.46 r0-x@0.52 r0-y@1.58 x01@2.66 x02@2.98 r2+y@3.27 r0+x@3.49 x02@3.55 r1+x@3.85 r0+x@4.12 r2+y@4.26
+shot_59.shot	cue=yellow	aim=241.0	speed=3.84	eng=-20	fol=-35	cue_rms=165	obj_rms=154	pen=0.00	x01@0.08 r1-y@0.20 r1+y@0.82 r0+y@1.78 r1-y@1.87 r0-x@3.13 r1+y@3.79 r0-y@4.76 r1-y@9.04 x02@11.50 r2+x@12.53
+shot_60.shot	cue=white	aim=131.5	speed=3.28	eng=-33	fol=+3	cue_rms=52	obj_rms=119	pen=0.05	r0+y@0.62 r0-x@1.27 r0-y@1.68 r0+y@3.34 x01@3.70 x02@3.81 r1+x@3.92 r0+x@3.95 x02@4.06 r2+y@4.66
+shot_62.shot	cue=white	aim=344.8	speed=2.14	eng=+26	fol=+64	cue_rms=343	obj_rms=1238	pen=0.03	x02@0.14 r0+x@0.18 r2+x@0.60 r2+y@0.91 r0-y@1.29 r0-x@2.24 r0+y@3.25 r0+x@6.25 r0-y@6.42 r0+y@14.70
+shot_63.shot	cue=yellow	aim=209.6	speed=3.93	eng=-0	fol=+33	cue_rms=163	obj_rms=244	pen=0.05	r0-y@0.14 r0-x@0.87 r0+y@1.25 x02@1.41 x01@1.58 r2+x@3.08 r1-y@3.50 r2+y@4.99 r2-x@10.00
+shot_64.shot	cue=yellow	aim=31.3	speed=3.56	eng=+39	fol=+0	cue_rms=69	obj_rms=120	pen=0.00	x01@0.21 r0+y@0.50 r1+x@0.71 r0+x@1.25 r0-y@1.83 r1-x@3.57 r0+y@4.10 x02@5.18 r2-x@6.10 r0-x@6.48
+shot_65.shot	cue=yellow	aim=0.7	speed=3.24	eng=+20	fol=-0	cue_rms=87	obj_rms=72	pen=0.00	x01@0.95 r0+x@1.09 r1+x@1.16 r0-y@1.46 r1+y@2.35 r0+y@3.91 r0-x@4.20 r1-y@8.91
+shot_66.shot	cue=white	aim=39.3	speed=3.32	eng=+49	fol=+5	cue_rms=144	obj_rms=141	pen=0.12	x01@0.51 r0+y@0.67 r0+x@1.35 r0-y@1.69 r1+x@3.21 r0+y@3.24 r0-x@3.75 x02@4.08 r1-y@7.93
+shot_67.shot	cue=white	aim=48.7	speed=3.43	eng=+8	fol=-23	cue_rms=88	obj_rms=20	pen=0.02	x02@0.20 r0+y@0.38 r2+y@0.52 r0+x@1.46 r0-y@1.80 r0+y@3.96 r0-x@5.75
+shot_68.shot	cue=yellow	aim=170.2	speed=3.59	eng=+0	fol=-50	cue_rms=258	obj_rms=129	pen=0.02	x01@0.38 r0-x@0.76 x02@0.89 r0-y@1.12 r1+y@1.36 r1-x@3.26 r0+x@3.68 r1-y@4.58 r0+y@4.90 x01@8.67
+shot_69.shot	cue=white	aim=59.1	speed=2.53	eng=-36	fol=-2	cue_rms=45	obj_rms=3	pen=0.00	r0+y@0.73 r0-y@2.30 r0+y@5.59
+shot_70.shot	cue=yellow	aim=7.0	speed=2.39	eng=-37	fol=+34	cue_rms=178	obj_rms=48	pen=0.12	x01@0.89 r1+x@0.97 x01@1.05 r0+y@2.43 r0-x@4.34 r0-y@7.39
+shot_71.shot	cue=white	aim=195.3	speed=2.98	eng=+3	fol=+36	cue_rms=186	obj_rms=110	pen=0.00	x01@0.15 r1-y@0.46 r0-x@1.20 r1+y@2.46 r0+y@2.47 r0+x@3.30 x01@6.48 r1-y@7.19 x01@7.91 r1-x@9.41
+shot_72.shot	cue=yellow	aim=338.2	speed=2.38	eng=-36	fol=-6	cue_rms=192	obj_rms=129	pen=0.02	x01@0.13 r1-y@0.20 r1+y@2.02 r0+x@2.09 r0+y@2.82 x02@6.02 r1-y@6.26 r2-y@6.34 r2-x@6.68 x02@7.00 r0-y@7.97 r0-x@8.25
+shot_73.shot	cue=white	aim=138.6	speed=3.38	eng=-36	fol=+1	cue_rms=178	obj_rms=181	pen=0.02	x02@0.19 r0-x@0.36 r2+y@0.59 r0-y@1.35 r2-y@2.02 r0+x@2.73 r0+y@4.45 r2+y@4.87 r0-x@8.13 r0-y@9.63
+shot_74.shot	cue=yellow	aim=41.6	speed=2.74	eng=-30	fol=+33	cue_rms=69	obj_rms=157	pen=0.00	x02@0.19 r2+y@0.62 r0+x@1.76 r2-y@2.10 r0+y@2.54 r2+y@5.04 r0-x@5.69 r0-y@6.47 x01@6.68
+shot_75.shot	cue=yellow	aim=22.7	speed=5.63	eng=-14	fol=-10	cue_rms=215	obj_rms=155	pen=0.02	x01@0.09 r0-y@0.36 r1+y@0.43 r0+x@0.74 r1-y@1.14 r0+y@1.63 r1+y@2.36 r0-x@2.78 x12@2.83 r0-y@3.39 r2-y@5.51 r0+y@6.13 r0+x@6.61
+shot_76.shot	cue=yellow	aim=334.6	speed=0.94	eng=+33	fol=+1	cue_rms=69	obj_rms=1108	pen=3.52	x01@0.02 r1+x@0.92
+shot_77.shot	cue=yellow	aim=263.8	speed=2.61	eng=+49	fol=+11	cue_rms=382	obj_rms=485	pen=0.35	r0-y@0.34 x01@0.36 r1-x@2.22 r1+y@2.29 r0+y@2.65 r0+x@3.20 x12@8.39 r1+x@9.25 r1-y@11.00
+shot_78.shot	cue=yellow	aim=173.6	speed=3.88	eng=+11	fol=+21	cue_rms=171	obj_rms=154	pen=0.00	x01@0.26 r0-y@0.60 r1+y@0.91 r0-x@1.27 r1-x@1.64 r0+y@2.48 r1-y@2.58 r0+x@4.16 r0-y@5.14 r1+y@5.59 r1+x@6.86 r0+y@10.13 r0-x@11.08
+shot_79.shot	cue=white	aim=180.4	speed=1.95	eng=+44	fol=+24	cue_rms=459	obj_rms=322	pen=0.05	r0-x@1.38 x01@1.42 r1+y@1.75 r1-y@5.29
+shot_80.shot	cue=yellow	aim=2.5	speed=5.16	eng=+70	fol=-7	cue_rms=502	obj_rms=952	pen=1.30	x02@0.11 r0-y@0.18 r0+x@0.61 r2+y@1.11 r0-y@1.46 r0-x@2.01 r2-y@3.15 r0+y@3.49 r0+x@4.40 x01@5.28 r0-y@5.83 r0+y@9.78 r0-x@11.64
+shot_81.shot	cue=white	aim=22.5	speed=3.28	eng=-50	fol=+4	cue_rms=276	obj_rms=709	pen=0.88	x02@0.18 r0+x@0.48 r0+y@0.68 r2-y@0.73 r2+x@0.91 r0-y@1.64 r0-x@3.39 r0+y@3.75 x01@3.96 r2+y@5.33
+shot_82.shot	cue=white	aim=318.2	speed=3.34	eng=+9	fol=+6	cue_rms=134	obj_rms=115	pen=0.00	x01@0.43 r1-y@0.69 r0+x@1.13 r0-y@1.46 r1+y@2.52 r0-x@4.14 r0+y@5.77 r1-y@6.99
+shot_84.shot	cue=yellow	aim=124.0	speed=4.09	eng=-17	fol=-33	cue_rms=94	obj_rms=141	pen=0.00	x02@0.32 r2+y@0.34 r0+y@0.55 r0-x@0.87 r2-y@1.20 r0-y@2.61 r2+y@2.64 x01@3.60 r1+x@4.42 r0+x@4.47 r0+y@5.20 r2-y@5.50 r1-y@7.46 r0-y@10.47
+shot_85.shot	cue=yellow	aim=81.4	speed=4.05	eng=+23	fol=-2	cue_rms=154	obj_rms=77	pen=0.00	x02@0.10 r2+y@0.50 r0+y@0.79 r0+x@1.07 r2-x@1.32 r2-y@1.75 r0-y@2.22 r0-x@3.84 r2+y@4.19 r0+y@4.43 r0-y@8.20 x01@8.44
+shot_86.shot	cue=yellow	aim=274.7	speed=3.14	eng=+36	fol=+35	cue_rms=293	obj_rms=208	pen=0.72	x02@0.08 r2+x@0.13 r0-y@0.22 r2-y@0.60 r0+y@1.12 r0-y@2.99 r0-x@3.39 r2-x@3.63 r2+y@5.42 r0+y@7.07
+shot_87.shot	cue=white	aim=123.2	speed=3.35	eng=+55	fol=+19	cue_rms=139	obj_rms=250	pen=0.02	x02@0.28 r0+y@0.72 r2+y@0.80 r0+x@1.49 r2-x@1.71 r0-y@2.16 r2-y@2.95 r0+y@4.45 r2+x@5.80 r2+y@6.43 x12@9.42 r0-x@9.79
+shot_88.shot	cue=yellow	aim=257.3	speed=3.94	eng=-21	fol=-11	cue_rms=141	obj_rms=162	pen=0.00	x02@0.10 r2-y@0.25 r0-y@0.46 r2+y@1.18 r2-x@1.18 r0+x@1.28 r0+y@2.62 r2-y@3.39 r0-x@5.55 r0-y@6.16
+shot_89.shot	cue=white	aim=16.5	speed=3.09	eng=+10	fol=-0	cue_rms=216	obj_rms=164	pen=0.00	x01@0.50 r1+y@0.98 r0+x@1.60 r0-y@2.50 r1+x@2.56 r1-y@3.39 r0-x@6.01 r0+y@7.78 x12@8.67
+shot_90.shot	cue=white	aim=286.3	speed=1.75	eng=-3	fol=+8	cue_rms=227	obj_rms=497	pen=0.72	x01@0.08 r1-y@1.12 x12@3.20 r1+y@3.48 r0+x@5.71
+shot_91.shot	cue=white	aim=111.4	speed=4.64	eng=-14	fol=+20	cue_rms=150	obj_rms=140	pen=0.00	x02@0.22 r2+y@0.23 r0+y@0.31 r0-x@0.78 r2-y@0.89 r0-y@1.80 r2+y@1.98 r0+x@3.04 r0+y@3.92 r2-y@3.97 r0-y@7.39 r0-x@7.52
+shot_92.shot	cue=yellow	aim=135.0	speed=3.99	eng=-20	fol=+3	cue_rms=278	obj_rms=134	pen=0.00	r0+y@0.38 x02@0.40 r0-x@1.19 r2-y@1.45 r0-y@2.55 r0+x@3.47 r2+y@3.50 r0+y@4.99 r0-x@8.33 r0-y@9.16 x01@10.26
+shot_93.shot	cue=yellow	aim=353.0	speed=3.32	eng=-20	fol=+0	cue_rms=38	obj_rms=140	pen=0.00	x02@0.46 r2-y@0.60 r0+x@1.32 r2+x@1.51 r0+y@1.99 r2+y@2.36 x01@4.30 r0-y@4.84 r2-y@5.71 r1-x@6.03
+shot_94.shot	cue=white	aim=81.0	speed=4.02	eng=-21	fol=-35	cue_rms=352	obj_rms=225	pen=0.00	x01@0.07 r0+y@0.28 r0-x@0.39 r0-y@1.04 r1+y@1.15 r1+x@2.21 r0+y@2.28 x01@2.95 r0+x@4.02 r1-y@4.40 r1+y@9.88
+shot_95.shot	cue=yellow	aim=315.6	speed=3.46	eng=-28	fol=+46	cue_rms=152	obj_rms=319	pen=2.22	x02@0.37 x12@0.39 r0-y@0.52 x02@0.73 r1+x@0.78 r0+x@1.18 r1-y@1.24 r0+y@1.62 r2+y@1.67 x02@1.95 r0-y@3.58 r1-x@4.37 x01@4.59 r0-x@5.02 r2-y@5.78 r1+y@6.70
+shot_96.shot	cue=white	aim=232.5	speed=4.97	eng=+16	fol=+11	cue_rms=170	obj_rms=106	pen=0.02	x01@0.20 r0-y@0.25 r1-x@0.29 r0+y@0.77 r0-x@0.82 r1-y@0.86 x02@1.33 r0-x@1.58 r1+x@1.89 r2-y@1.96 r0-y@2.62 r1-x@4.81 r2+y@5.73 x01@6.12
+shot_97.shot	cue=white	aim=9.9	speed=3.46	eng=-7	fol=+8	cue_rms=217	obj_rms=316	pen=0.00	x01@0.59 r1+y@0.65 r0+x@0.68 r1+x@0.71 r1-y@2.37 r0-x@3.60 x12@4.71 r1+y@5.87 r1-x@6.73
+shot_98.shot	cue=white	aim=236.4	speed=3.57	eng=+48	fol=-48	cue_rms=209	obj_rms=1220	pen=0.00	r0-x@0.30 r0-y@0.50 r0+y@1.77 x01@3.80 r0-y@3.93 r1+x@4.13 r1-y@4.96
+shot_99.shot	cue=white	aim=238.6	speed=3.85	eng=-47	fol=-7	cue_rms=90	obj_rms=184	pen=0.00	x01@0.28 r1-y@0.31 r0-y@0.33 r0+x@1.06 r1-x@1.56 r0+y@1.64 r1+y@1.73 r0-y@3.62 r1-y@3.76 r0-x@5.37 r1+x@5.63
