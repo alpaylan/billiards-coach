@@ -65,11 +65,13 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.cfg.outputs.skip == 'false'
 
-      - name: Install ffmpeg + yt-dlp
+      - name: Install ffmpeg + yt-dlp (+deno for YouTube extraction)
         if: steps.cfg.outputs.skip == 'false'
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
           pipx install yt-dlp
+          curl -fsSL https://deno.land/install.sh | sh -s -- -y >/dev/null
+          echo "$HOME/.deno/bin" >> "$GITHUB_PATH"
 
       - uses: Swatinem/rust-cache@v2
         if: steps.cfg.outputs.skip == 'false'
@@ -80,9 +82,20 @@ jobs:
 
       - name: Download video
         if: steps.cfg.outputs.skip == 'false'
+        env:
+          # optional: base64 of a YouTube cookies.txt — datacenter IPs are
+          # frequently bot-checked without one. Locally:
+          #   yt-dlp --cookies-from-browser chrome --cookies yt.txt --skip-download <any yt url>
+          #   base64 -i yt.txt | gh secret set YT_COOKIES -R alpaylan/billiards-coach
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
-          yt-dlp -f "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b" \
-                 --merge-output-format mp4 -o match.mp4 "${{ steps.cfg.outputs.url }}"
+          ARGS=(-f "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b"
+                --merge-output-format mp4 -o match.mp4)
+          if [ -n "$YT_COOKIES" ]; then
+            echo "$YT_COOKIES" | base64 -d > /tmp/cookies.txt
+            ARGS+=(--cookies /tmp/cookies.txt)
+          fi
+          yt-dlp "${ARGS[@]}" "${{ steps.cfg.outputs.url }}"
           ffprobe -v error -show_entries format=duration -of csv=p=0 match.mp4
 
       - name: Track match
