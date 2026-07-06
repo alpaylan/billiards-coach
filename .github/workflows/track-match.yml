@@ -90,6 +90,7 @@ jobs:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           ARGS=(-f "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b"
+                --remote-components ejs:github
                 --merge-output-format mp4 -o match.mp4)
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" | base64 -d > /tmp/cookies.txt
