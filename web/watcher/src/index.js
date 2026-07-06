@@ -10,6 +10,12 @@
 // Config (wrangler.toml vars / secrets):
 //   NTFY_TOPIC   ntfy.sh topic to push to ("" disables)
 //   WEBHOOK_URL  optional: POST full JSON transition events here (secret)
+//   GH_TOKEN     optional secret: fine-grained PAT (Contents: read+write on
+//                GH_REPO) — when set, a matches-started transition fires a
+//                repository_dispatch (type "bilardo-match") so the track-match
+//                workflow runs. The payload carries the raw match objects; the
+//                workflow proceeds only if it finds a video_url in them.
+//   GH_REPO      "owner/repo" for the dispatch (var)
 
 const TYPES = ["3cushion", "pool"];
 
@@ -82,6 +88,25 @@ async function check(env) {
         .flatMap((s) => s.matches.map((m) => `[${s.type}] M${m.table}: ${m.players.filter(Boolean).join(" vs ")}`))
         .join("\n");
       await notify(env, title, lines || "no details");
+      // Matches just started: kick the cloud tracker (dormant until GH_TOKEN set).
+      if (total > 0 && prevTotal === 0 && env.GH_TOKEN && env.GH_REPO) {
+        // If the bilardo API exposes a stream link, surface it as video_url so
+        // the workflow can act; field name TBD until observed live.
+        const first = states.flatMap((s) => s.matches)[0]?.raw || {};
+        const video_url = first.video_url || first.youtube || first.stream || null;
+        await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${env.GH_TOKEN}`,
+            accept: "application/vnd.github+json",
+            "user-agent": "billiards-coach-watcher",
+          },
+          body: JSON.stringify({
+            event_type: "bilardo-match",
+            client_payload: { at: now, total, video_url, states },
+          }),
+        }).catch(() => {});
+      }
       const history = (await env.STATE.get("history", "json")) || [];
       history.unshift({ at: now, title, total, fp });
       await env.STATE.put("history", JSON.stringify(history.slice(0, 100)));

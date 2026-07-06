@@ -15,3 +15,4 @@ id = "1524ee24bd53494b818cc5aa043c07a8"
 # set to "" to disable. WEBHOOK_URL can be added as a secret for a custom hook:
 #   npx wrangler secret put WEBHOOK_URL
 NTFY_TOPIC = "bilardo-watch-95271fa2aa3f"
+GH_REPO = "alpaylan/billiards-coach"

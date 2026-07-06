@@ -1,0 +1,143 @@
+# Track a broadcast match into browsable .shot files — the cloud tracker.
+#
+# Triggers:
+#   * workflow_dispatch — paste a video URL (YouTube VOD or direct mp4), get a
+#     tracked/annotated/calibrated match as a workflow artifact + an ntfy push.
+#   * repository_dispatch (type bilardo-match) — fired by the bilardo.info
+#     watcher Worker when live matches appear. Runs only if the payload carries
+#     a video_url (the bilardo API's stream-link field mapping is confirmed the
+#     first time a real tournament goes live); otherwise exits gracefully —
+#     the watcher's ntfy push already told a human.
+#
+# No secrets required. Known risk: YouTube sometimes bot-blocks datacenter IPs
+# for yt-dlp; if downloads fail here, run locally or add a cookies secret.
+
+name: track-match
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: "YouTube VOD / direct video URL"
+        required: true
+      name:
+        description: "match name (output dir / bundle id)"
+        default: "match"
+      preset:
+        description: "broadcast geometry"
+        type: choice
+        options: ["1080p", "720p"]
+        default: "1080p"
+      t0:
+        description: "only track after this video time (s)"
+        default: ""
+      t1:
+        description: "only track before this video time (s)"
+        default: ""
+  repository_dispatch:
+    types: [bilardo-match]
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Resolve inputs
+        id: cfg
+        env:
+          URL: ${{ github.event.inputs.video_url || github.event.client_payload.video_url }}
+          NAME: ${{ github.event.inputs.name || github.event.client_payload.name || 'match' }}
+          PRESET: ${{ github.event.inputs.preset || github.event.client_payload.preset || '1080p' }}
+          T0: ${{ github.event.inputs.t0 || github.event.client_payload.t0 }}
+          T1: ${{ github.event.inputs.t1 || github.event.client_payload.t1 }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "no video_url in payload — nothing to track (watcher push already notified a human)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "url=$URL"; echo "name=$NAME"; echo "preset=$PRESET"
+            echo "t0=$T0"; echo "t1=$T1"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.skip == 'false'
+
+      - name: Install ffmpeg + yt-dlp
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          pipx install yt-dlp
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.cfg.outputs.skip == 'false'
+
+      - name: Build tracker (static ONNX Runtime)
+        if: steps.cfg.outputs.skip == 'false'
+        run: cargo build -p billiards-cli --features track --release
+
+      - name: Download video
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          yt-dlp -f "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b" \
+                 --merge-output-format mp4 -o match.mp4 "${{ steps.cfg.outputs.url }}"
+          ffprobe -v error -show_entries format=duration -of csv=p=0 match.mp4
+
+      - name: Track match
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          ARGS=(--match match.mp4 --model python/detector.onnx
+                --out-root out --name "${{ steps.cfg.outputs.name }}"
+                --preset "${{ steps.cfg.outputs.preset }}")
+          [ -n "${{ steps.cfg.outputs.t0 }}" ] && ARGS+=(--t0 "${{ steps.cfg.outputs.t0 }}")
+          [ -n "${{ steps.cfg.outputs.t1 }}" ] && ARGS+=(--t1 "${{ steps.cfg.outputs.t1 }}")
+          ./target/release/billiards track "${ARGS[@]}"
+
+      - name: Annotate make/miss from scoreboard (Python, best-effort)
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          pip install -q numpy opencv-python-headless
+          cd python && python3 annotate_results.py ../match.mp4 "../out/${{ steps.cfg.outputs.name }}" || true
+
+      - name: Calibrate physics + verify
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          cargo run -p billiards-solver --example calibrate_match --release -- "out/${{ steps.cfg.outputs.name }}" || true
+          cargo run -p billiards-solver --example verify_match --release -- "out/${{ steps.cfg.outputs.name }}" | tee out/verify.txt
+
+      - name: Build web bundle (per-shot MP4s)
+        if: steps.cfg.outputs.skip == 'false'
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          sys.path.insert(0, 'python')
+          from publish_bundle import publish_game
+          name = "${{ steps.cfg.outputs.name }}"
+          n = publish_game('out', name, f'bundle/{name}')
+          shots = json.load(open(f'bundle/{name}/shots.json'))
+          made = sum(1 for s in shots if s.get('result') == 'make')
+          json.dump({"games": [{"id": 0, "dir": name, "left": name, "right": "",
+                                "n_shots": len(shots), "n_made": made}]},
+                    open('bundle/match.json', 'w'), indent=1)
+          print(f"bundle: {n} shots, {made} made")
+          EOF
+
+      - name: Upload artifact
+        if: steps.cfg.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.cfg.outputs.name }}
+          path: |
+            out/
+            bundle/
+          retention-days: 30
+
+      - name: Notify
+        if: always() && steps.cfg.outputs.skip == 'false'
+        run: |
+          N=$(ls out/${{ steps.cfg.outputs.name }}/*.shot 2>/dev/null | wc -l)
+          curl -s -X POST "https://ntfy.sh/bilardo-watch-95271fa2aa3f" \
+            -H "Title: track-match ${{ job.status }}: ${{ steps.cfg.outputs.name }}" \
+            -d "$N shots tracked. Artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
