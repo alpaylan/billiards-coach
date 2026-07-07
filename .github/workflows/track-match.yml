@@ -34,6 +34,10 @@ on:
       t1:
         description: "only track before this video time (s)"
         default: ""
+      no_frames:
+        description: "labeling run: don't keep frames (skips bundle; saves runner disk)"
+        type: boolean
+        default: false
   repository_dispatch:
     types: [bilardo-match]
 
@@ -107,6 +111,7 @@ jobs:
                 --preset "${{ steps.cfg.outputs.preset }}")
           [ -n "${{ steps.cfg.outputs.t0 }}" ] && ARGS+=(--t0 "${{ steps.cfg.outputs.t0 }}")
           [ -n "${{ steps.cfg.outputs.t1 }}" ] && ARGS+=(--t1 "${{ steps.cfg.outputs.t1 }}")
+          [ "${{ github.event.inputs.no_frames }}" = "true" ] && ARGS+=(--no-frames)
           ./target/release/billiards track "${ARGS[@]}"
 
       - name: Annotate make/miss from scoreboard (Python, best-effort)
@@ -122,7 +127,7 @@ jobs:
           cargo run -p billiards-solver --example verify_match --release -- "out/${{ steps.cfg.outputs.name }}" | tee out/verify.txt
 
       - name: Build web bundle (per-shot MP4s)
-        if: steps.cfg.outputs.skip == 'false'
+        if: steps.cfg.outputs.skip == 'false' && github.event.inputs.no_frames != 'true'
         run: |
           python3 - <<'EOF'
           import json, os, sys

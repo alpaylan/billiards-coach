@@ -292,6 +292,7 @@ pub fn run(args: &[String]) {
         std::process::exit(2);
     };
     let t0: f64 = arg(args, "--t0").and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let no_frames = args.iter().any(|a| a == "--no-frames");
     let t1: Option<f64> = arg(args, "--t1").and_then(|s| s.parse().ok());
     let orient = match arg(args, "--orient").as_deref() {
         Some("horizontal") => Orient::Horizontal,
@@ -377,6 +378,13 @@ pub fn run(args: &[String]) {
             "shot_{k:02},{:.2},{:.2},{:.2},{:.2},{outcome}\n",
             sh.onset, sh.settle, clip_t0, clip_end
         );
+        // Disk budget: a full game's extracted frames are ~6 GB. Junk and
+        // refused candidates never need theirs again; with --no-frames the
+        // tracked shots' frames go too (labeling-only runs — the .shot files
+        // are the product; the editor's video panel just won't have footage).
+        if outcome != "tracked" || no_frames {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
     }
     std::fs::write(format!("{shots_dir}/segments.csv"), &manifest).expect("write manifest");
     eprintln!("[3/3] done — {ok}/{} shots tracked -> {shots_dir}/ (+ segments.csv)", shots.len());
