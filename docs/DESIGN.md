@@ -311,6 +311,25 @@ Each phase is independently demoable; the data-hungry/ML work is deliberately la
         `ORT_DYLIB_PATH` (Apple SDK lacks the libc++ symbols pyke's static lib
         needs). This is the cheap-hosting artifact: the binary + detector.onnx
         + ffmpeg/yt-dlp run a match on any Linux box or CI runner, no Python.
+  - [x] **Segmentation loss-proofing** (`--match`, validated 3 runs on real
+        footage): whole-match reconstruction must not lose shots, so —
+        (a) a window BEFORE the first clock reset (recovered the mid-countdown
+        shot at capture start); (b) EVERY rest-to-rest motion episode per
+        window is a candidate, not just the biggest burst (recovered 2 shots
+        the old logic silently dropped); (c) candidates whose padded clips
+        overlap are MERGED (an aiming-phase episode otherwise swallows the
+        following stroke via the 11.5 s minimum clip and duplicates it);
+        (d) post-track gates: <1 m total travel = junk (hands/spotting),
+        equal stroke-absolute-time = duplicate; (e) **`segments.csv`** written
+        next to the shots (and into the CI artifact): every candidate's
+        absolute onset/settle + extracted clip start/end + outcome, so padding
+        and refusals are auditable against footage. Result on 15 min of
+        tournament video: 37 candidates → 28 tracked (all 25 previous + 3
+        recovered), 5 junk, 4 honest refusals. Related findings: the masa4
+        recording STARTS MID-GAME (clock mid-countdown at t=0 — banner's 2-0
+        offset is capture truncation, not segmentation loss); frames with ZERO
+        region proposals crash the traced ONNX graph (Reshape {0,16}→{0,-1}) —
+        `OnnxDetector` maps that to "no detections".
   - [x] **Snapshot testing infrastructure** (`snapshots/`, see its README):
         the regression gate the port (and all future fit/engine work) is judged
         against. Two layers: `snapshot_recon` — one line per shot across the

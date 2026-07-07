@@ -12,6 +12,7 @@ We use this to (1) find a game start (scores 0-0) and (2) segment a game into
 individual shots (one shot ~ one clock cycle: appears -> counts down -> resets).
 """
 
+import os
 import subprocess
 
 import cv2
@@ -19,7 +20,7 @@ import numpy as np
 
 # Fixed overlay geometry (measured on the 1280x720 MASA 4 stream, X-CnEnG5hB4).
 SCORE_L = (542, 621, 55, 39)   # x, y, w, h — white box, black digit
-INNINGS = (597, 621, 84, 39)
+INNINGS = (599, 638, 80, 36)  # the DIGIT row; the label sits above at y~621
 SCORE_R = (681, 621, 54, 39)
 CLOCK_RING = (606, 535, 74, 62)  # green ring bbox above the innings box
 GREEN = ((38, 70, 70), (88, 255, 255))  # HSV range for the clock ring
@@ -140,3 +141,100 @@ if __name__ == "__main__":
             continue
         active, frac = clock(f)
         print(f"{p}: clock active={active} fraction={frac:.2f}")
+
+
+# --- full banner reading: score/innings digits + the run indicator ----------
+#
+# The banner also carries (measured on the 1080p stream, /1.5 to the 720p base):
+#   * a BALL ICON at the banner's outer edge showing whose turn it is —
+#     white ball far-LEFT for white's turn, yellow ball far-RIGHT for yellow's;
+#   * next to it, the ONGOING RUN counter (consecutive points this turn).
+# Together with the score digits and the innings box these give an independent
+# ground truth to verify shot segmentation + make/miss annotation against.
+
+RUN_L_BALL = (12, 630, 32, 34)
+RUN_L_NUM = (42, 622, 58, 46)
+RUN_R_NUM = (1162, 622, 58, 46)
+RUN_R_BALL = (1223, 630, 32, 35)
+
+
+def _glyphs(crop):
+    """A digit box -> per-digit 24x32 bitmaps, left to right (multi-digit)."""
+    g = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    if g.mean() < 110:
+        g = 255 - g
+    _, b = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(b)
+    h_box = crop.shape[0]
+    comps = []
+    for i in range(1, n):
+        x, y, w, h = (stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP],
+                      stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT])
+        if stats[i, cv2.CC_STAT_AREA] < 25 or h < 0.4 * h_box:
+            continue  # specks / box edges — a digit is tall
+        comps.append((x, y, w, h, i))
+    comps.sort()
+    out = []
+    for x, y, w, h, i in comps:
+        d = (lab[y:y + h, x:x + w] == i).astype(np.uint8) * 255
+        W, H = 24, 32
+        s = min((W - 4) / w, (H - 4) / h)
+        dw, dh = max(1, int(round(w * s))), max(1, int(round(h * s)))
+        d = cv2.resize(d, (dw, dh), interpolation=cv2.INTER_AREA)
+        canvas = np.zeros((H, W), np.uint8)
+        canvas[(H - dh) // 2:(H - dh) // 2 + dh, (W - dw) // 2:(W - dw) // 2 + dw] = d
+        out.append((canvas > 127).astype(np.uint8))
+    return out
+
+
+def load_templates(path=None):
+    path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "digit_templates.npz")
+    if not os.path.exists(path):
+        return None
+    z = np.load(path)
+    return {int(k): z[k] for k in z.files}  # digit -> (n, 32, 24) stacks
+
+
+def _classify(bitmap, templates, min_agree=0.86):
+    best, best_a = None, min_agree
+    for d, stack in templates.items():
+        a = float(np.max((stack == bitmap).mean(axis=(1, 2))))
+        if a > best_a:
+            best, best_a = d, a
+    return best
+
+
+def read_number(frame, box, templates):
+    """The integer shown in `box`, or None if any glyph is unrecognized."""
+    gl = _glyphs(_box(frame, box))
+    if not gl:
+        return None
+    digits = [_classify(g, templates) for g in gl]
+    if any(d is None for d in digits):
+        return None
+    return int("".join(str(d) for d in digits))
+
+
+def banner_state(frame, templates):
+    """Everything the banner says: (score_l, innings, score_r, turn, run).
+    `turn` is 'white'|'yellow'|None from the outer ball icon; `run` is the
+    ongoing-run counter next to it (None when unreadable/absent)."""
+    sl = read_number(frame, SCORE_L, templates)
+    inn = read_number(frame, INNINGS, templates)
+    sr = read_number(frame, SCORE_R, templates)
+
+    def ball(box, want):
+        hsv = cv2.cvtColor(_box(frame, box), cv2.COLOR_BGR2HSV)
+        if want == "yellow":
+            m = cv2.inRange(hsv, np.array((18, 90, 120)), np.array((35, 255, 255)))
+        else:  # white: bright, unsaturated
+            m = cv2.inRange(hsv, np.array((0, 0, 170)), np.array((179, 70, 255)))
+        s = frame.shape[0] / BASE_H
+        return int(cv2.countNonZero(m)) > 220 * s * s
+
+    turn, run = None, None
+    if ball(RUN_L_BALL, "white"):
+        turn, run = "white", read_number(frame, RUN_L_NUM, templates)
+    elif ball(RUN_R_BALL, "yellow"):
+        turn, run = "yellow", read_number(frame, RUN_R_NUM, templates)
+    return sl, inn, sr, turn, run

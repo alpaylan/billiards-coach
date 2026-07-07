@@ -63,6 +63,30 @@ fn arg(args: &[String], name: &str) -> Option<String> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
 }
 
+/// Total ball travel (m) in a serialized .shot — junk gate for candidates.
+fn shot_travel(text: &str) -> f64 {
+    let mut last: std::collections::HashMap<&str, (f64, f64)> = Default::default();
+    let mut total = 0.0;
+    for line in text.lines() {
+        let f: Vec<&str> = line.split(',').collect();
+        if f.len() == 4 {
+            if let (Ok(x), Ok(y)) = (f[2].parse::<f64>(), f[3].parse::<f64>()) {
+                if let Some((px, py)) = last.insert(f[0], (x, y)) {
+                    total += (x - px).hypot(y - py);
+                }
+            }
+        }
+    }
+    total
+}
+
+/// The `start N` header of a serialized .shot (stroke's rest-onset frame).
+fn shot_start_frame(text: &str) -> usize {
+    text.lines()
+        .find_map(|l| l.strip_prefix("start ").and_then(|v| v.trim().parse().ok()))
+        .unwrap_or(0)
+}
+
 fn ffprobe(video: &str) -> (usize, usize, f64) {
     let out = Command::new("ffprobe")
         .args(["-v", "error", "-select_streams", "v:0",
@@ -167,14 +191,19 @@ fn analyze(video: &str, t0: f64, t1: Option<f64>) -> (f64, Vec<u32>, Vec<(f64, f
     }
 }
 
-/// Rest-to-rest span of the main stroke inside frames [a, b) — `_stroke_span`.
-fn stroke_span(fine: &[u32], fps: f64, a: usize, b: usize) -> Option<(usize, usize)> {
+/// ALL rest-to-rest stroke episodes inside frames [a, b) — a generalization of
+/// detect_shots.py's `_stroke_span`, which kept only the biggest burst per
+/// clock window and silently DROPPED any second stroke sharing a window (a
+/// missed clock reset ⇒ a lost shot). Reconstructing whole matches means never
+/// losing a shot: emit every qualifying episode as a candidate and let
+/// rest-bounds / tracking / the banner guard reject the junk downstream.
+fn stroke_spans(fine: &[u32], fps: f64, a: usize, b: usize) -> Vec<(usize, usize, u32)> {
     let seg = &fine[a..b.min(fine.len())];
     if seg.is_empty() {
-        return None;
+        return Vec::new();
     }
     let rest = (REST_S * fps) as usize;
-    let mut eps: Vec<(usize, usize)> = Vec::new();
+    let mut out = Vec::new();
     let mut i = 0;
     while i < seg.len() {
         if seg[i] > MOTION_HI {
@@ -183,40 +212,74 @@ fn stroke_span(fine: &[u32], fps: f64, a: usize, b: usize) -> Option<(usize, usi
                 gap = if seg[j] <= MOTION_LO { gap + 1 } else { 0 };
                 j += 1;
             }
-            eps.push((i, j - gap));
+            let e = j - gap;
+            // extend to rest on both sides
+            let mut o = i;
+            while o > 0 && seg[o] > MOTION_LO {
+                o -= 1;
+            }
+            let (mut st, mut run) = (e, 0);
+            while st < seg.len() && run < rest {
+                run = if seg[st] <= MOTION_LO { run + 1 } else { 0 };
+                st += 1;
+            }
+            let peak = seg[i..e.max(i + 1)].iter().copied().max().unwrap_or(0);
+            out.push((a + o, a + st, peak));
             i = j;
         } else {
             i += 1;
         }
     }
-    let &(s, e) = eps.iter().max_by_key(|&&(s, e)| seg[s..e.max(s + 1)].iter().sum::<u32>())?;
-    let mut o = s;
-    while o > 0 && seg[o] > MOTION_LO {
-        o -= 1;
-    }
-    let (mut st, mut run) = (e, 0);
-    while st < seg.len() && run < rest {
-        run = if seg[st] <= MOTION_LO { run + 1 } else { 0 };
-        st += 1;
-    }
-    Some((a + o, a + st))
+    out
 }
 
-/// Shot windows from clock resets, bounded rest-to-rest — `find_shots`.
+/// Shot candidates from clock resets, bounded rest-to-rest — `find_shots`,
+/// with two loss-proofing changes: a window BEFORE the first reset (a shot can
+/// be mid-countdown when the capture/segment starts), and every stroke episode
+/// per window kept (not just the biggest). Overlapping candidates from window
+/// spill are deduplicated by onset.
 fn find_shots(fps: f64, clock: &[(f64, f64)], fine: &[u32]) -> Vec<Shot> {
     let resets: Vec<usize> = (1..clock.len())
         .filter(|&k| clock[k].1 - clock[k - 1].1 > 0.25 && clock[k].1 > 0.5)
         .map(|k| (clock[k].0 * fps) as usize)
         .collect();
     let spill = (1.5 * fps) as usize;
-    let mut shots = Vec::new();
+    let mut bounds: Vec<(usize, usize)> = Vec::new();
+    if resets.first().is_some_and(|&r| r > (2.0 * fps) as usize) {
+        bounds.push((0, resets[0] + spill)); // pre-first-reset play
+    }
     for (i, &a) in resets.iter().enumerate() {
         let b = resets.get(i + 1).copied().unwrap_or(fine.len());
-        if let Some((onset, settle)) = stroke_span(fine, fps, a, (b + spill).min(fine.len())) {
-            shots.push(Shot { onset: onset as f64 / fps, settle: settle as f64 / fps });
+        bounds.push((a, (b + spill).min(fine.len())));
+    }
+    let mut shots: Vec<Shot> = Vec::new();
+    for (a, b) in bounds {
+        for (onset, settle, _peak) in stroke_spans(fine, fps, a, b) {
+            let (t_on, t_set) = (onset as f64 / fps, settle as f64 / fps);
+            if shots.iter().any(|s| (s.onset - t_on).abs() < 1.0) {
+                continue; // same stroke seen via window spill
+            }
+            shots.push(Shot { onset: t_on, settle: t_set });
         }
     }
-    shots
+    shots.sort_by(|x, y| x.onset.total_cmp(&y.onset));
+    // Merge candidates whose EXTRACTED CLIPS would overlap: an aiming-phase
+    // motion episode (cue stick over the inset, seconds before the stroke)
+    // gets an 11.5s-minimum clip that swallows the following real shot and
+    // yields a duplicate track. Merged, the union clip's rest-bounds trim to
+    // the true stroke. Real consecutive shots are a full shot clock apart, so
+    // they never merge; a genuinely separate second stroke keeps its clip.
+    let clip_end = |s: &Shot| (s.settle + PAD_POST).max(s.onset + 11.5);
+    let mut merged: Vec<Shot> = Vec::new();
+    for s in shots {
+        match merged.last_mut() {
+            Some(last) if s.onset - PAD_PRE < clip_end(last) => {
+                last.settle = last.settle.max(s.settle);
+            }
+            _ => merged.push(s),
+        }
+    }
+    merged
 }
 
 pub fn run(args: &[String]) {
@@ -257,6 +320,12 @@ pub fn run(args: &[String]) {
     // inset crop is already in this resolution's absolute pixels
     let (ins_x, ins_y, ins_w, ins_h) = p.inset;
     let mut ok = 0usize;
+    // Auditable segmentation record: every candidate with its ABSOLUTE video
+    // seconds (onset/settle from motion, the padded clip actually extracted)
+    // and what became of it — so pre/post padding and any lost/refused shot
+    // can be checked against the footage without re-running the scan.
+    let mut manifest = String::from("shot,onset_s,settle_s,clip_start_s,clip_end_s,status\n");
+    let mut stroke_times: Vec<f64> = Vec::new();
     for (k, sh) in shots.iter().enumerate() {
         let dir = format!("{frames_root}/shot_{k:02}");
         let _ = std::fs::remove_dir_all(&dir);
@@ -270,20 +339,46 @@ pub fn run(args: &[String]) {
                    &format!("{dir}/f_%04d.png"), "-y"])
             .status()
             .expect("ffmpeg extract");
+        let outcome;
         if !status.success() {
             eprintln!("      shot_{k:02}: ffmpeg extract failed");
-            continue;
-        }
-        match track_cmd::track_dir(&det, &dir, p.corners, orient, fps, Some(clip_t0)) {
-            Some(text) => {
-                let path = format!("{shots_dir}/shot_{k:02}.shot");
-                std::fs::write(&path, text).expect("write shot");
-                eprintln!("      shot_{k:02}: ok ({:.0}s)", sh.onset);
-                ok += 1;
+            outcome = "extract_failed";
+        } else {
+            match track_cmd::track_dir(&det, &dir, p.corners, orient, fps, Some(clip_t0)) {
+                Some(text) => {
+                    // Safety nets against candidate over-generation: a tracked
+                    // "shot" with almost no ball travel is table-side activity
+                    // (hands, ball spotting), and one whose stroke lands at an
+                    // already-written shot's moment is a duplicate clip view.
+                    let travel = shot_travel(&text);
+                    let stroke_abs = clip_t0 + shot_start_frame(&text) as f64 / fps;
+                    if travel < 1.0 {
+                        eprintln!("      shot_{k:02}: junk (travel {travel:.2} m)");
+                        outcome = "junk_low_travel";
+                    } else if stroke_times.iter().any(|&t: &f64| (t - stroke_abs).abs() < 2.0) {
+                        eprintln!("      shot_{k:02}: duplicate of an earlier candidate");
+                        outcome = "duplicate";
+                    } else {
+                        let path = format!("{shots_dir}/shot_{k:02}.shot");
+                        std::fs::write(&path, text).expect("write shot");
+                        eprintln!("      shot_{k:02}: ok ({:.0}s, {travel:.1} m)", sh.onset);
+                        stroke_times.push(stroke_abs);
+                        ok += 1;
+                        outcome = "tracked";
+                    }
+                }
+                None => {
+                    eprintln!("      shot_{k:02}: no clean stroke");
+                    outcome = "no_clean_stroke";
+                }
             }
-            None => eprintln!("      shot_{k:02}: no clean stroke"),
         }
+        manifest += &format!(
+            "shot_{k:02},{:.2},{:.2},{:.2},{:.2},{outcome}\n",
+            sh.onset, sh.settle, clip_t0, clip_end
+        );
     }
-    eprintln!("[3/3] done — {ok}/{} shots tracked -> {shots_dir}/", shots.len());
+    std::fs::write(format!("{shots_dir}/segments.csv"), &manifest).expect("write manifest");
+    eprintln!("[3/3] done — {ok}/{} shots tracked -> {shots_dir}/ (+ segments.csv)", shots.len());
     eprintln!("      (make/miss annotation + montage remain in Python: annotate_results.py)");
 }

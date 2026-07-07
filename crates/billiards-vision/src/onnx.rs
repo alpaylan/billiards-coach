@@ -70,7 +70,16 @@ impl OnnxDetector {
         let (tensor, scale) = letterbox(image);
         let input = Tensor::from_array(([3usize, CANON_H, CANON_W], tensor))?;
         let mut session = self.session.lock().unwrap();
-        let outputs = session.run(ort::inputs!["image" => input])?;
+        // A frame with ZERO region proposals (inset fully occluded, a cut)
+        // crashes the traced graph — the tracer baked >=1-proposal shapes into
+        // the ROI heads (Reshape {0,16}->{0,-1} can't infer -1). Semantically
+        // that IS "no detections", so report it as such; the tracker's
+        // classical fallback still gets its chance on the frame.
+        let outputs = match session.run(ort::inputs!["image" => input]) {
+            Ok(o) => o,
+            Err(e) if e.to_string().contains("Reshape") => return Ok(Vec::new()),
+            Err(e) => return Err(e),
+        };
         let (_, boxes) = outputs["boxes"].try_extract_tensor::<f32>()?;
         let (_, labels) = outputs["labels"].try_extract_tensor::<i64>()?;
         let (_, scores) = outputs["scores"].try_extract_tensor::<f32>()?;
