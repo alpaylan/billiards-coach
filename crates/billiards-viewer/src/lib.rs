@@ -1048,36 +1048,55 @@ impl eframe::App for ViewerApp {
                 .max_height(list_max)
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                for (si, s) in self.shots.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        let side = match s.player.as_deref() {
-                            Some("left") => "L",
-                            Some("right") => "R",
-                            _ => " ",
+                // One column per player, each holding that player's shots in
+                // order — a scoresheet reading. Shots without an attributed
+                // side sit in the left column marked "?".
+                let (lname, rname) = self
+                    .current_game
+                    .and_then(|gi| self.games.get(gi))
+                    .map(|g| (g.left.clone(), g.right.clone()))
+                    .unwrap_or_else(|| ("left".into(), "right".into()));
+                let glyph = |ui: &mut egui::Ui, result: Option<&str>| {
+                    let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+                    let c = r.center();
+                    match result {
+                        Some("make") => {
+                            let s = egui::Stroke::new(2.0, egui::Color32::from_rgb(70, 200, 110));
+                            ui.painter().line_segment([c + egui::vec2(-4.0, 0.0), c + egui::vec2(-1.0, 3.5)], s);
+                            ui.painter().line_segment([c + egui::vec2(-1.0, 3.5), c + egui::vec2(4.5, -3.5)], s);
+                        }
+                        Some("miss") => {
+                            let s = egui::Stroke::new(2.0, egui::Color32::from_rgb(210, 90, 90));
+                            ui.painter().line_segment([c + egui::vec2(-3.5, -3.5), c + egui::vec2(3.5, 3.5)], s);
+                            ui.painter().line_segment([c + egui::vec2(-3.5, 3.5), c + egui::vec2(3.5, -3.5)], s);
+                        }
+                        _ => {}
+                    }
+                };
+                ui.columns(2, |cols| {
+                    for (col, name) in [(0usize, &lname), (1, &rname)] {
+                        cols[col].add(
+                            egui::Label::new(egui::RichText::new(name).strong().small())
+                                .truncate(),
+                        );
+                    }
+                    for (si, s) in self.shots.iter().enumerate() {
+                        let (col, tag) = match s.player.as_deref() {
+                            Some("left") => (0, format!("shot {si}")),
+                            Some("right") => (1, format!("shot {si}")),
+                            _ => (0, format!("shot {si} ?")),
                         };
-                        if ui
-                            .selectable_label(self.current_shot == Some(si), format!("shot {si} {side}"))
-                            .clicked()
-                        {
-                            open_shot = Some(si);
-                        }
-                        let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
-                        let c = r.center();
-                        match s.result.as_deref() {
-                            Some("make") => {
-                                let s = egui::Stroke::new(2.0, egui::Color32::from_rgb(70, 200, 110));
-                                ui.painter().line_segment([c + egui::vec2(-4.0, 0.0), c + egui::vec2(-1.0, 3.5)], s);
-                                ui.painter().line_segment([c + egui::vec2(-1.0, 3.5), c + egui::vec2(4.5, -3.5)], s);
+                        cols[col].horizontal(|ui| {
+                            if ui
+                                .selectable_label(self.current_shot == Some(si), tag)
+                                .clicked()
+                            {
+                                open_shot = Some(si);
                             }
-                            Some("miss") => {
-                                let s = egui::Stroke::new(2.0, egui::Color32::from_rgb(210, 90, 90));
-                                ui.painter().line_segment([c + egui::vec2(-3.5, -3.5), c + egui::vec2(3.5, 3.5)], s);
-                                ui.painter().line_segment([c + egui::vec2(-3.5, 3.5), c + egui::vec2(3.5, -3.5)], s);
-                            }
-                            _ => {}
-                        }
-                    });
-                }
+                            glyph(ui, s.result.as_deref());
+                        });
+                    }
+                });
             });
             if let Some(si) = open_shot {
                 self.open_shot(si);
