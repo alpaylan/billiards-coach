@@ -1006,11 +1006,14 @@ impl eframe::App for ViewerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_inbox(ctx);
 
-        // ~30% of the window for the nav/scoresheet (was a fixed 230 px).
-        // The id carries the ratio: bumping it invalidates any stored width so
-        // a changed default actually lands for returning visitors.
-        let nav_w = ctx.screen_rect().width() * 0.30;
-        egui::SidePanel::left("nav30").default_width(nav_w).show(ctx, |ui| {
+        // Fixed 300 px default for the nav/scoresheet (was 230): a screen-
+        // fraction default proved fragile (first-frame canvas size, display
+        // scaling), and a point value is predictable everywhere. Drag range
+        // keeps it usable on any window; the id bump drops stale stored widths.
+        egui::SidePanel::left("nav_v3")
+            .default_width(300.0)
+            .width_range(180.0..=700.0)
+            .show(ctx, |ui| {
             ui.add_space(6.0);
             ui.heading("Billiards Coach");
             if let Some(e) = &self.error {
