@@ -1006,8 +1006,11 @@ impl eframe::App for ViewerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_inbox(ctx);
 
-        let nav_w = ctx.screen_rect().width() * 0.30;
-        egui::SidePanel::left("nav").default_width(nav_w).show(ctx, |ui| {
+        // Half the window for the nav/scoresheet, half for the table+video.
+        // The id carries the ratio: bumping it invalidates any stored width so
+        // a changed default actually lands for returning visitors.
+        let nav_w = ctx.screen_rect().width() * 0.50;
+        egui::SidePanel::left("nav50").default_width(nav_w).show(ctx, |ui| {
             ui.add_space(6.0);
             ui.heading("Billiards Coach");
             if let Some(e) = &self.error {
