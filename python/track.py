@@ -519,6 +519,18 @@ def export_for_fit(tracks, shots, fps, out_path, shot_idx,
     # A valid reconstruction needs the balls at REST at t=0 (the starting layout).
     # If there was no still frame before the stroke — e.g. the recording began
     # mid-shot — skip this shot rather than fit garbage from a moving start.
+    #
+    # QUASI-REST fallback: players in a scoring rhythm often stroke while a
+    # ball from their previous shot still creeps (<12 cm/s). Strict rest never
+    # occurs, the window used to be discarded, and the lost shots were exactly
+    # the best player's makes (measured on a 30-5 match: ~9 of the winner's
+    # shots dropped). A slow drift start costs the scene a centimeter-scale
+    # layout error — far better than losing the point entirely. QUASI_REST=0
+    # disables.
+    if not clean and os.environ.get("QUASI_REST", "1") != "0":
+        a, b, clean = _rest_bounds(motion, *shots[idx], fps, v_rest=0.12)
+        if clean:
+            print(f"      shot {idx}: quasi-rest start (pre-stroke drift <=0.12 m/s)")
     if not clean:
         print(f"skip shot {idx}: no at-rest start (recording began mid-shot)")
         return False
