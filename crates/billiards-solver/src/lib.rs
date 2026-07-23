@@ -19,6 +19,7 @@
 
 pub mod calibrate;
 pub mod fit;
+pub mod measure;
 mod par;
 mod rng;
 pub mod shotfile;

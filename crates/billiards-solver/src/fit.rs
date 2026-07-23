@@ -58,6 +58,26 @@ pub struct FitConfig {
     /// Enforce the observed cushion skeleton (rails each ball verifiably
     /// bounced off). Off = legacy scoring (RMS + ball-contact structure only).
     pub skeleton: bool,
+    /// Experimental: multiply the observed launch speed (the speed-pin center)
+    /// by this factor before windowing. 1.0 = trust `launch_estimate` as-is.
+    /// Exists to test the launch-speed under-measurement hypothesis (strike
+    /// blur biases the earliest frames) without changing the estimator.
+    pub speed_scale: f64,
+    /// Speed-box extension mode. `0` = the classic symmetric ±`speed_window`
+    /// box around `launch_estimate` — REQUIRED during physics calibration,
+    /// where any extra ceiling lets candidate physics hide error in inflated
+    /// speeds. `> 0` = reconstruction mode (known physics): the ceiling covers
+    /// the back-extrapolated launch when one exists, and opens by this much
+    /// extra when the opening was too short to verify — the blur-window
+    /// estimate's measured bias is one-sided low.
+    pub speed_box_extend: f64,
+    /// Weight of the cue's strike-adjacent samples (first 0.20 s after it
+    /// leaves rest) in the trajectory error. Real tracker data is blur-lagged
+    /// there — the launch audit measured the implied speed ~5-10% low — so
+    /// those samples keep reduced authority (default 0.2). Set 1.0 for
+    /// blur-free (synthetic) tracks: the weighting models the sensor, not the
+    /// physics.
+    pub blur_weight: f64,
 }
 
 impl Default for FitConfig {
@@ -77,6 +97,9 @@ impl Default for FitConfig {
             // hide physics error (which is what the free speed search was doing).
             speed_window: 0.22,
             skeleton: true,
+            speed_scale: 1.0,
+            speed_box_extend: 0.18,
+            blur_weight: 0.2,
         }
     }
 }
@@ -87,6 +110,25 @@ pub struct FitResult {
     pub action: CueAction,
     /// RMS distance (meters) between observed and simulated ball positions.
     pub rms_m: f64,
+}
+
+/// One member of the fit's multistart population: an action that explains the
+/// tracks, with the total loss (RMS + event penalty, meters) it was ranked by.
+#[derive(Clone, Copy, Debug)]
+pub struct FitCandidate {
+    pub action: CueAction,
+    pub loss: f64,
+}
+
+/// A fit together with the deduplicated multistart population it was chosen
+/// from, sorted by loss (`candidates[0]` is `best`). The population is the raw
+/// material for uncertainty over anything computed downstream of the action —
+/// a score verdict, a predicted path — because near-tied candidates are
+/// alternative explanations of the same tracks, and where they disagree the
+/// data genuinely doesn't decide.
+pub struct FitEnsemble {
+    pub best: FitResult,
+    pub candidates: Vec<FitCandidate>,
 }
 
 /// The observed event skeleton: which physical events the tracks actually show.
@@ -505,19 +547,41 @@ pub fn event_penalty(sim: &Simulation, events: &ObservedEvents) -> f64 {
 }
 
 /// RMS position error between a simulation and the observed tracks.
-fn total_error(sim: &Simulation, observed: &[ObservedTrack]) -> f64 {
+///
+/// Strike-adjacent cue samples are blur-corrupted — the launch audit measured
+/// the speed they imply ~5-10% low, which means their *positions* lag reality.
+/// At full weight they drag every reconstruction toward the lag (a correct,
+/// faster launch is punished by the very samples that caused the bias), so the
+/// cue's first 0.20 s after leaving rest is down-weighted: its aim information
+/// is retained at reduced authority while the sharp remainder of the track
+/// decides the speed story.
+fn total_error(sim: &Simulation, observed: &[ObservedTrack], blur_w: f64) -> f64 {
+    const BLUR_T: f64 = 0.20;
+    let blur_end = observed.first().and_then(|cue| {
+        let &(t0, p0) = cue.first()?;
+        let mut t_rest = t0;
+        for &(t, p) in cue {
+            if (p - p0).length() < 0.015 {
+                t_rest = t;
+            } else {
+                break;
+            }
+        }
+        Some(t_rest + BLUR_T)
+    });
     let mut sse = 0.0;
-    let mut n = 0usize;
+    let mut n = 0.0f64;
     for (i, track) in observed.iter().enumerate() {
         if i >= sim.trajectories.len() {
             break;
         }
         for &(t, p) in track {
-            sse += (sim.trajectories[i].state_at(t).pos - p).length_squared();
-            n += 1;
+            let w = if i == 0 && blur_end.is_some_and(|te| t < te) { blur_w } else { 1.0 };
+            sse += w * (sim.trajectories[i].state_at(t).pos - p).length_squared();
+            n += w;
         }
     }
-    if n == 0 { f64::INFINITY } else { (sse / n as f64).sqrt() }
+    if n == 0.0 { f64::INFINITY } else { (sse / n).sqrt() }
 }
 
 fn eval(
@@ -528,10 +592,11 @@ fn eval(
     phys: &PhysicsParams,
     observed: &[ObservedTrack],
     events: &ObservedEvents,
+    blur_w: f64,
 ) -> f64 {
     let action = CueAction::from_tip_offset(p[0], p[1], p[2], p[3], ball.radius);
     let sim = simulate(&scene.ball_states(&action), table, ball, phys);
-    total_error(&sim, observed) + event_penalty(&sim, events)
+    total_error(&sim, observed, blur_w) + event_penalty(&sim, events)
 }
 
 /// The cue ball's launch — (heading radians, speed m/s) — read directly off its
@@ -558,7 +623,7 @@ fn eval(
 /// blurred sample or a curving path yields a large spread; a long clean baseline
 /// a small one. The fit widens its aim window to this spread, so shots with a
 /// genuinely ambiguous launch aren't clamped to a false certainty.
-fn launch_estimate(
+pub fn launch_estimate(
     cue: &[(f64, DVec3)],
     obstacles: &[DVec3],
     t_stop: f64,
@@ -688,6 +753,53 @@ fn wrap_angle(a: f64) -> f64 {
     (a + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU) - std::f64::consts::PI
 }
 
+/// Launch speed by back-extrapolation from a SHARP window, bypassing the
+/// strike-blurred frames [`launch_estimate`] reads. The launch audit measured
+/// that estimator ~5–10% low (28% of fits strained the pin ceiling; on clean
+/// openings the rolling-only lower bound already matched it): the LS slope
+/// over the blur window reports the mid-window speed of a hard-decelerating
+/// slide, not the strike speed. Here: velocity over [rest+0.18, rest+0.48]
+/// (past the blur, before the first event), extrapolated back to the rest
+/// moment with the deceleration measured from a second window when one fits —
+/// clamped to the physical [rolling, sliding] range — else the rolling floor
+/// (a lower bound). `None` when the opening is too short or bent; the caller
+/// falls back to `launch_estimate`.
+fn backext_launch_speed(cue: &[(f64, DVec3)], t_end: f64, phys: &PhysicsParams) -> Option<f64> {
+    // Rolling deceleration as measured corpus-wide by roll_decel (m/s²).
+    const ROLL_DECEL: f64 = 0.054;
+    let &(t0, p0) = cue.first()?;
+    let mut t_rest = t0;
+    for &(t, p) in cue {
+        if (p - p0).length() < 0.015 {
+            t_rest = t;
+        } else {
+            break;
+        }
+    }
+    if t_end - t_rest <= 0.55 {
+        return None;
+    }
+    let win = |lo: f64, hi: f64| -> Option<(DVec3, f64, f64)> {
+        let pts: Vec<(f64, DVec3)> = cue
+            .iter()
+            .filter(|(t, _)| *t >= lo && *t <= hi.min(t_end - 0.04))
+            .cloned()
+            .collect();
+        crate::measure::window_velocity(&pts)
+    };
+    let (v1, tm1, x1) = win(t_rest + 0.18, t_rest + 0.48)?;
+    if x1 > 0.02 || v1.length() < 0.3 {
+        return None; // bent (hidden contact / swerve) or too slow to trust
+    }
+    let decel = win(t_rest + 0.48, t_rest + 0.78)
+        .filter(|&(v2, _, x2)| x2 <= 0.02 && v2.length() > 0.15)
+        .map(|(v2, tm2, _)| {
+            ((v1.length() - v2.length()) / (tm2 - tm1)).clamp(ROLL_DECEL, 1.2 * phys.mu_slide * phys.g)
+        })
+        .unwrap_or(ROLL_DECEL);
+    Some((v1.length() + decel * (tm1 - t_rest)).clamp(0.1, 8.0))
+}
+
 /// A struck ball's departure direction: the chord from its rest position out to
 /// ~20 cm of its early travel (skipping samples still at the rest). This is the
 /// line of centers of the collision (± throw), observed with a far longer clean
@@ -723,15 +835,28 @@ pub fn fit_action(
     phys: &PhysicsParams,
     cfg: &FitConfig,
 ) -> FitResult {
+    fit_action_ensemble(scene, observed, table, ball, phys, cfg).best
+}
+
+/// [`fit_action`], but returning the winning pass's whole candidate population
+/// (see [`FitEnsemble`]) instead of only its best member.
+pub fn fit_action_ensemble(
+    scene: &Scene,
+    observed: &[ObservedTrack],
+    table: &TableSpec,
+    ball: &BallSpec,
+    phys: &PhysicsParams,
+    cfg: &FitConfig,
+) -> FitEnsemble {
     // Judge each pass on the CUE's own error: object tracks can carry constant
     // corruption (phantom detections) that no action changes, which would mask
     // both the trigger and the comparison.
     let cue_rms = |r: &FitResult| {
         let sim = simulate(&scene.ball_states(&r.action), table, ball, phys);
-        total_error(&sim, &observed[..1])
+        total_error(&sim, &observed[..1], cfg.blur_weight)
     };
     let strict = fit_action_pass(scene, observed, table, ball, phys, cfg);
-    let strict_cue = cue_rms(&strict);
+    let strict_cue = cue_rms(&strict.best);
     if strict_cue <= 0.30 {
         return strict;
     }
@@ -744,7 +869,7 @@ pub fn fit_action(
         ..*cfg
     };
     let relaxed = fit_action_pass(scene, observed, table, ball, phys, &relaxed_cfg);
-    if cue_rms(&relaxed) < strict_cue * 0.8 {
+    if cue_rms(&relaxed.best) < strict_cue * 0.8 {
         relaxed
     } else {
         strict
@@ -758,7 +883,7 @@ fn fit_action_pass(
     ball: &BallSpec,
     phys: &PhysicsParams,
     cfg: &FitConfig,
-) -> FitResult {
+) -> FitEnsemble {
     // Tip-offset grid points inside the miscue disk.
     let lim = cfg.miscue_limit;
     let mut offsets = Vec::new();
@@ -802,8 +927,29 @@ fn fit_action_pass(
         })
         .collect();
     let t_stop = moves.iter().map(|&(_, t)| t).fold(f64::INFINITY, f64::min);
-    let (mut aim0, speed0, spread) =
+    let (mut aim0, speed_le, spread) =
         launch_estimate(&observed[0], &obstacles, t_stop, table.center_bounds(ball.radius), ball.radius);
+    // Speed pin. `launch_estimate` stays the CENTER (exact on clean tracks;
+    // on real footage its blur window reads ~5-10% low). The back-extrapolated
+    // sharp-window estimate ([`backext_launch_speed`]) shapes the BOX instead:
+    // when it verifies a higher launch, the ceiling extends to cover it; when
+    // the opening is too short to verify at all, the ceiling opens one-sidedly
+    // (+40%) — the measured blur bias points only one way, and the pile-up of
+    // fits at the old ceiling (30-41% of shots) was its signature. The floor
+    // never widens: no bias points down.
+    let speed0 = speed_le * cfg.speed_scale;
+    let (hi_center, up_window) = if cfg.speed_box_extend > 0.0 {
+        let cue_first_cushion =
+            events.cushions.first().and_then(|c| c.first()).map_or(f64::INFINITY, |&(t, _)| t);
+        let backext = backext_launch_speed(&observed[0], t_stop.min(cue_first_cushion), phys)
+            .filter(|v| *v > 0.5 * speed_le && *v < 2.0 * speed_le);
+        match backext {
+            Some(v) => (v.max(speed_le) * cfg.speed_scale, cfg.speed_window),
+            None => (speed0, cfg.speed_window + cfg.speed_box_extend),
+        }
+    } else {
+        (speed0, cfg.speed_window)
+    };
     // The aim window is the *observed* heading uncertainty: at least the caller's
     // window, wider when the free flight was blurred/curved/short — capped so the
     // fit can never wander far from the launch direction that was actually seen.
@@ -920,7 +1066,7 @@ fn fit_action_pass(
         }
     }
     let speed_lo = if unpin_speed { cfg.speed_min } else { (speed0 * (1.0 - cfg.speed_window)).max(cfg.speed_min) };
-    let speed_hi = if unpin_speed { cfg.speed_max } else { (speed0 * (1.0 + cfg.speed_window)).min(cfg.speed_max) };
+    let speed_hi = if unpin_speed { cfg.speed_max } else { (hi_center * (1.0 + up_window)).min(cfg.speed_max) };
 
     // 1. Grid, parallel over aim (order preserved for determinism).
     let grid: Vec<([f64; 4], f64)> = (0..cfg.aim_steps)
@@ -933,7 +1079,7 @@ fn fit_action_pass(
                 let speed = lerp(speed_lo, speed_hi, si, cfg.speed_steps);
                 for &(h, v) in &offsets {
                     let p = [aim, speed, h, v];
-                    local.push((p, eval(scene, p, table, ball, phys, observed, &events)));
+                    local.push((p, eval(scene, p, table, ball, phys, observed, &events, cfg.blur_weight)));
                 }
             }
             local
@@ -950,20 +1096,45 @@ fn fit_action_pass(
     let mut grid = grid;
     grid.sort_by(|a, b| a.1.total_cmp(&b.1));
     let k = cfg.multistart.min(grid.len());
-    let refined: Vec<([f64; 4], f64)> = grid[..k]
+    let mut refined: Vec<([f64; 4], f64)> = grid[..k]
         .par_iter()
         .map(|&(p0, e0)| refine(scene, p0, e0, aim_bounds, speed_bounds, table, ball, phys, observed, &events, cfg))
         .collect();
-    let (p, _err) = refined
-        .into_iter()
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .expect("non-empty candidates");
+
+    // Collapse optimizer copies: multistart runs often converge to the same
+    // point, and how many land in a basin measures the optimizer's attraction,
+    // not that mode's plausibility — keep one representative per mode. Stable
+    // sort + first-wins keeps the selected best identical to the old min_by.
+    refined.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let mut kept: Vec<([f64; 4], f64)> = Vec::new();
+    for (q, e) in refined {
+        let dup = kept.iter().any(|&(r, _)| {
+            (q[0] - r[0]).abs() < 0.01
+                && (q[1] - r[1]).abs() < 0.05
+                && (q[2] - r[2]).abs() < 0.02
+                && (q[3] - r[3]).abs() < 0.02
+        });
+        if !dup {
+            kept.push((q, e));
+        }
+    }
+    let candidates: Vec<FitCandidate> = kept
+        .iter()
+        .map(|&(q, loss)| FitCandidate {
+            action: CueAction::from_tip_offset(q[0], q[1], q[2], q[3], ball.radius),
+            loss,
+        })
+        .collect();
 
     // Rank by RMS+event-penalty (causal faithfulness), but REPORT the pure
     // position error — "fit error" must mean what it says.
+    let p = kept[0].0;
     let action = CueAction::from_tip_offset(p[0], p[1], p[2], p[3], ball.radius);
     let sim = simulate(&scene.ball_states(&action), table, ball, phys);
-    FitResult { action, rms_m: total_error(&sim, observed) }
+    FitEnsemble {
+        best: FitResult { action, rms_m: total_error(&sim, observed, cfg.blur_weight) },
+        candidates,
+    }
 }
 
 /// Coordinate descent with shrinking steps from a single start point. Aim is
@@ -998,7 +1169,7 @@ fn refine(
                 if (cand[2] * cand[2] + cand[3] * cand[3]).sqrt() > cfg.miscue_limit {
                     continue;
                 }
-                let e = eval(scene, cand, table, ball, phys, observed, &events);
+                let e = eval(scene, cand, table, ball, phys, observed, &events, cfg.blur_weight);
                 if e < err {
                     p = cand;
                     err = e;

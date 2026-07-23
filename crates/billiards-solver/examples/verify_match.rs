@@ -71,14 +71,41 @@ fn main() {
     let (mut g_pass, mut g_warn, mut g_fail, mut g_all) = (0, 0, 0, Vec::new());
     let mut g_obj: Vec<f64> = Vec::new();
 
-    // Optional throw sweep: BF=<ball_friction> overrides the collision throw
-    // coefficient (not one of the calibrated 4) to test if it explains object-ball error.
-    let bf_override: Option<f64> = env::var("BF").ok().and_then(|s| s.parse().ok());
+    // Optional physics sweeps (none of these are among the calibrated 4):
+    // BF/BF_B/BF_C override the ball–ball friction curve, MU_SPIN the english
+    // decay — for isolating which model change explains a metric shift.
+    let envf = |k: &str| env::var(k).ok().and_then(|s| s.parse::<f64>().ok());
+    let (bf, bf_b, bf_c, mu_sp) = (envf("BF"), envf("BF_B"), envf("BF_C"), envf("MU_SPIN"));
+    let eb = envf("EB");
+    let bb_steps: Option<u32> = env::var("BB_STEPS").ok().and_then(|s| s.parse().ok());
+    let cushion_steps: Option<u32> = env::var("CUSHION_STEPS").ok().and_then(|s| s.parse().ok());
+    let ec_slope = envf("EC_SLOPE");
 
     for dir in &dirs {
         let (mut phys, had_cal) = load_calibration(dir);
-        if let Some(bf) = bf_override {
-            phys.ball_friction = bf;
+        if let Some(v) = bf {
+            phys.ball_friction = v;
+        }
+        if let Some(v) = bf_b {
+            phys.ball_friction_b = v;
+        }
+        if let Some(v) = bf_c {
+            phys.ball_friction_c = v;
+        }
+        if let Some(v) = mu_sp {
+            phys.mu_spin = v;
+        }
+        if let Some(v) = eb {
+            phys.ball_restitution = v;
+        }
+        if let Some(v) = bb_steps {
+            phys.ball_contact_steps = v;
+        }
+        if let Some(v) = cushion_steps {
+            phys.cushion_contact_steps = v;
+        }
+        if let Some(v) = ec_slope {
+            phys.cushion_restitution_slope = v;
         }
         let mut paths: Vec<String> = fs::read_dir(dir).into_iter().flatten().flatten()
             .map(|e| e.path().to_string_lossy().into_owned())
@@ -139,6 +166,6 @@ fn main() {
         println!("\n=== overall: {total} shots · median cue {median:.0} mm · median obj {median_obj:.0} mm · \
                   {g_pass} PASS / {g_warn} WARN / {g_fail} FAIL ({:.0}% pass) ==={}",
             100.0 * g_pass as f64 / total.max(1) as f64,
-            bf_override.map(|b| format!("  [BF={b}]")).unwrap_or_default());
+            bf.map(|b| format!("  [BF={b}]")).unwrap_or_default());
     }
 }

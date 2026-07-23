@@ -37,7 +37,21 @@ fn rms(shots: &[&CalibShot], table: &TableSpec, ball: &BallSpec, phys: &PhysicsP
 fn main() {
     let dir = env::args().nth(1).expect("usage: calibrate_match <match_dir>");
     let (ball, table) = (BallSpec::carom(), TableSpec::carom_match());
-    let base = PhysicsParams::default();
+    // BB_STEPS switches the ball-ball contact model for the whole calibration
+    // (see collision.rs) — used to refit under the integrated contact.
+    let mut base = PhysicsParams::default();
+    if let Some(v) = env::var("BB_STEPS").ok().and_then(|s| s.parse().ok()) {
+        base.ball_contact_steps = v;
+    }
+    if let Some(v) = env::var("CUSHION_STEPS").ok().and_then(|s| s.parse().ok()) {
+        base.cushion_contact_steps = v;
+    }
+    if let Some(v) = env::var("EC_SLOPE").ok().and_then(|s| s.parse().ok()) {
+        base.cushion_restitution_slope = v;
+    }
+    if let Some(v) = env::var("ECD").ok().and_then(|s| s.parse().ok()) {
+        base.cushion_restitution_chain = v;
+    }
     let r = ball.radius;
 
     let mut paths: Vec<String> = fs::read_dir(&dir).unwrap()
@@ -51,7 +65,15 @@ fn main() {
         return;
     }
     let fit = FitConfig { aim_window: 0.03, ..CalibConfig::default().fit };
-    let cfg = CalibConfig { fit, ..CalibConfig::default() };
+    let mut cfg = CalibConfig { fit, ..CalibConfig::default() };
+    // PIN_EC / PIN_FC: impose an externally measured cushion parameter (e.g.
+    // the event-local fit from cushion_events) and let the rest re-optimize.
+    if let Some(v) = env::var("PIN_EC").ok().and_then(|s| s.parse().ok()) {
+        cfg.pins[0] = Some(v);
+    }
+    if let Some(v) = env::var("PIN_FC").ok().and_then(|s| s.parse().ok()) {
+        cfg.pins[1] = Some(v);
+    }
     let all: Vec<&CalibShot> = shots.iter().collect();
 
     let cal = calibrate(&shots, &table, &ball, &base, &cfg);
@@ -61,8 +83,10 @@ fn main() {
     // Held-out generalization: fit on even-indexed shots, measure the odd ones (and
     // vice versa). If the held-out error is far above the in-fit error, the four
     // params are chasing noise in a specific game rather than the table's physics.
+    // CALIB_FAST=1 skips it (3× cheaper — for parameter experiments, not for
+    // producing production calibrations).
     let mut heldout = f64::NAN;
-    if shots.len() >= 6 {
+    if shots.len() >= 6 && env::var("CALIB_FAST").map_or(true, |v| v != "1") {
         let mut acc = 0.0;
         for parity in 0..2 {
             let train: Vec<CalibShot> = shots.iter().enumerate()
@@ -86,7 +110,10 @@ fn main() {
         if heldout.is_finite() { format!("{heldout:.0}") } else { "null".into() },
         overfit,
     );
-    let out = format!("{}/calibration.json", dir.trim_end_matches('/'));
+    // CALIB_OUT: write elsewhere (parameter experiments must not clobber the
+    // game's production calibration.json).
+    let out = env::var("CALIB_OUT")
+        .unwrap_or_else(|_| format!("{}/calibration.json", dir.trim_end_matches('/')));
     fs::write(&out, &json).expect("write calibration.json");
     println!("calibrated {} shots: e_c {:.3} f_c {:.3} mu_s {:.3} mu_r {:.4}",
         shots.len(), cal.cushion_restitution, cal.cushion_friction, cal.mu_slide, cal.mu_roll);

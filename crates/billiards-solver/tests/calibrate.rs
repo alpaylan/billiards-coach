@@ -50,7 +50,12 @@ fn recovers_physics_from_synthetic_shots() {
 
     // Start from the literature defaults (wrong for this table) and calibrate.
     let base = PhysicsParams::default();
-    let rec = calibrate(&shots, &table, &ball, &base, &CalibConfig::default());
+    // Synthetic tracks are blur-free: the strike-blur down-weighting models
+    // the real tracker's sensor corruption, so disable it here — the test
+    // checks estimator consistency against the forward model's own output.
+    let mut cfg = CalibConfig::default();
+    cfg.fit.blur_weight = 1.0;
+    let rec = calibrate(&shots, &table, &ball, &base, &cfg);
 
     println!(
         "recovered: e_c={:.3} f_c={:.3} mu_s={:.3} mu_r={:.4}  (truth 0.80/0.15/0.17/0.0130)",

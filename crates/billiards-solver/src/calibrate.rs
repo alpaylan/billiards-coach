@@ -28,6 +28,11 @@ pub struct CalibConfig {
     /// Inner action-fit resolution (kept coarse — we need residuals, not perfect actions).
     pub fit: FitConfig,
     pub iters: usize,
+    /// Pin any of [e_c, f_c, mu_slide, mu_roll]: the value is fixed before the
+    /// descent and that coordinate is never searched. Lets an externally
+    /// measured parameter (e.g. an event-local cushion fit) be imposed while
+    /// the remaining parameters re-optimize jointly around it.
+    pub pins: [Option<f64>; 4],
 }
 
 impl Default for CalibConfig {
@@ -39,9 +44,14 @@ impl Default for CalibConfig {
                 offset_steps: 5,
                 multistart: 8,
                 refine_iters: 30,
+                // Calibration must keep the speed box TIGHT: a widened
+                // ceiling lets candidate physics hide error in inflated
+                // speeds and biases the recovered parameters.
+                speed_box_extend: 0.0,
                 ..FitConfig::default()
             },
             iters: 50,
+            pins: [None; 4],
         }
     }
 }
@@ -93,12 +103,20 @@ pub fn calibrate(
     cfg: &CalibConfig,
 ) -> PhysicsParams {
     let mut x = pack(base);
+    for (k, pin) in cfg.pins.iter().enumerate() {
+        if let Some(v) = pin {
+            x[k] = *v;
+        }
+    }
     let mut step = [0.03, 0.03, 0.02, 0.002];
     let mut err = objective(&x, shots, table, ball, base, &cfg.fit);
 
     for _ in 0..cfg.iters {
         let mut improved = false;
         for k in 0..4 {
+            if cfg.pins[k].is_some() {
+                continue;
+            }
             for dir in [1.0, -1.0] {
                 let mut cand = x;
                 cand[k] = (cand[k] + dir * step[k]).clamp(BOUNDS[k].0, BOUNDS[k].1);
