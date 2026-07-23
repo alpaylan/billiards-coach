@@ -26,7 +26,7 @@ on:
       preset:
         description: "broadcast geometry"
         type: choice
-        options: ["1080p", "720p"]
+        options: ["1080p", "720p", "bilardo_l", "bilardo_r"]
         default: "1080p"
       t0:
         description: "only track after this video time (s)"
