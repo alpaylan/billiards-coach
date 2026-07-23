@@ -151,7 +151,13 @@ def annotate(video, match_dir, offset=0.0):
         if nxt is not None and nxt not in tracked_by_idx and k + 1 < len(metas):
             if metas[k + 1][2] - ts < 75.0:
                 nxt = idx_of[metas[k + 1][0]]
-        if nxt is not None and nxt in tracked_by_idx:
+        # A wholly unsegmented shot (the clock cycle never became a window)
+        # leaves ADJACENT windows with a long stroke-time gap between them —
+        # the sequence rule would silently grade against the wrong "next"
+        # shot. The gap budget must be checked in TIME, not window indices:
+        # beyond one turnaround (75 s) the sequence says nothing.
+        seq_ok = k + 1 < len(metas) and metas[k + 1][2] - ts < 75.0
+        if nxt is not None and nxt in tracked_by_idx and seq_ok:
             nxt_cue = tracked_by_idx[nxt][1]["cue"]
             made = nxt_cue == s["cue"]
         else:
