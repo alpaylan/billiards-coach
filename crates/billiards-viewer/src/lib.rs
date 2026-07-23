@@ -1038,6 +1038,44 @@ impl eframe::App for ViewerApp {
                 self.open_game(gi);
             }
             ui.separator();
+            // Match tracker: the score and inning AS OF the selected shot —
+            // walk the sheet up to it, a point per make, an inning per pair of
+            // turns (a turn = a maximal run of one player's shots). With no
+            // shot selected it shows the final state.
+            if !self.shots.is_empty() {
+                let upto = self.current_shot.unwrap_or(self.shots.len() - 1);
+                let (mut ls, mut rs, mut runs) = (0u32, 0u32, 0u32);
+                let mut prev: Option<&str> = None;
+                for s in self.shots.iter().take(upto + 1) {
+                    let p = s.player.as_deref();
+                    if matches!(p, Some("left") | Some("right")) {
+                        if p != prev {
+                            runs += 1;
+                            prev = p;
+                        }
+                        if s.result.as_deref() == Some("make") {
+                            match p {
+                                Some("left") => ls += 1,
+                                Some("right") => rs += 1,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                let inning = runs.div_ceil(2);
+                let (lname, rname) = self
+                    .current_game
+                    .and_then(|gi| self.games.get(gi))
+                    .map(|g| (g.left.clone(), g.right.clone()))
+                    .unwrap_or_else(|| ("left".into(), "right".into()));
+                let text = if self.current_shot.is_some() {
+                    format!("after shot {upto}:  {lname} {ls} – {rs} {rname}  ·  inning {inning}")
+                } else {
+                    format!("final:  {lname} {ls} – {rs} {rname}  ·  {inning} innings")
+                };
+                ui.add(egui::Label::new(egui::RichText::new(text).strong()).truncate());
+                ui.add_space(4.0);
+            }
             // The controls below get first claim on the panel's height (their
             // measured height from last frame); the shot list — 100+ entries
             // for a full game — lives in whatever remains and scrolls.
