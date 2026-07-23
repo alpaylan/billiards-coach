@@ -1010,7 +1010,7 @@ impl eframe::App for ViewerApp {
         // fraction default proved fragile (first-frame canvas size, display
         // scaling), and a point value is predictable everywhere. Drag range
         // keeps it usable on any window; the id bump drops stale stored widths.
-        egui::SidePanel::left("nav_v3")
+        egui::SidePanel::left("nav_v4")
             .default_width(400.0)
             .width_range(180.0..=700.0)
             .show(ctx, |ui| {
