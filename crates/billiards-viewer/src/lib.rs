@@ -1006,7 +1006,8 @@ impl eframe::App for ViewerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_inbox(ctx);
 
-        egui::SidePanel::left("nav").default_width(230.0).show(ctx, |ui| {
+        let nav_w = ctx.screen_rect().width() * 0.30;
+        egui::SidePanel::left("nav").default_width(nav_w).show(ctx, |ui| {
             ui.add_space(6.0);
             ui.heading("Billiards Coach");
             if let Some(e) = &self.error {
@@ -1068,11 +1069,8 @@ impl eframe::App for ViewerApp {
                     .and_then(|gi| self.games.get(gi))
                     .map(|g| (g.left.clone(), g.right.clone()))
                     .unwrap_or_else(|| ("left".into(), "right".into()));
-                let text = if self.current_shot.is_some() {
-                    format!("after shot {upto}:  {lname} {ls} – {rs} {rname}  ·  inning {inning}")
-                } else {
-                    format!("final:  {lname} {ls} – {rs} {rname}  ·  {inning} innings")
-                };
+                let _ = upto;
+                let text = format!("{lname} {ls} – {rs} {rname}  ·  inning {inning}");
                 ui.add(egui::Label::new(egui::RichText::new(text).strong()).truncate());
                 ui.add_space(4.0);
             }
