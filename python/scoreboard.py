@@ -156,6 +156,26 @@ RUN_L_BALL = (12, 630, 32, 34)
 RUN_L_NUM = (42, 622, 58, 46)
 RUN_R_NUM = (1162, 622, 58, 46)
 RUN_R_BALL = (1223, 630, 32, 35)
+RUN_BALL_MIN = 220
+
+
+# Per-production banner variants. The 2024 "C KATEGORISI" production (ISTAKA
+# label, bottom-right inset) shares every box with the default MASA4 layout
+# except the right-hand run counter, which hugs the frame edge.
+LAYOUTS = {
+    "masa4": {"RUN_R_NUM": (1162, 622, 58, 46), "RUN_R_BALL": (1223, 630, 32, 35),
+              "RUN_BALL_MIN": 220},
+    # smaller ball icon in this production -> lower pixel-count gate
+    "2024c": {"RUN_R_NUM": (1206, 631, 44, 32), "RUN_R_BALL": (1240, 634, 24, 26),
+              "RUN_BALL_MIN": 90},
+}
+
+
+def set_layout(name):
+    """Switch the production-specific banner boxes (see LAYOUTS)."""
+    g = globals()
+    for k, v in LAYOUTS[name].items():
+        g[k] = v
 
 
 def _glyphs(crop):
@@ -230,7 +250,7 @@ def banner_state(frame, templates):
         else:  # white: bright, unsaturated
             m = cv2.inRange(hsv, np.array((0, 0, 170)), np.array((179, 70, 255)))
         s = frame.shape[0] / BASE_H
-        return int(cv2.countNonZero(m)) > 220 * s * s
+        return int(cv2.countNonZero(m)) > RUN_BALL_MIN * s * s
 
     turn, run = None, None
     if ball(RUN_L_BALL, "white"):

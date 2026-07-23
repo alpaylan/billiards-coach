@@ -24,9 +24,15 @@ async function poll(type) {
   const r = await fetch(url, { headers: { "user-agent": "billiards-coach-watcher" } });
   if (!r.ok) throw new Error(`${type}: HTTP ${r.status}`);
   const j = await r.json();
+  // Field names verified against a live tournament (2026-07-23): players are
+  // player1name/player2name, and `broadcast` carries the YouTube video id of
+  // the table's stream (broadcast_status: "live"/"offline") — the key that
+  // makes automatic corpus capture possible.
   const matches = (j.matches || []).map((m) => ({
     table: m.table_no ?? null,
-    players: [m.player1 ?? m.p1 ?? null, m.player2 ?? m.p2 ?? null],
+    players: [m.player1name ?? m.player1 ?? m.p1 ?? null, m.player2name ?? m.player2 ?? m.p2 ?? null],
+    video: m.broadcast ? `https://www.youtube.com/watch?v=${m.broadcast}` : null,
+    live: m.broadcast_status === "live",
     raw: m,
   }));
   return { type, count: j.matchcount ?? matches.length, matches };
@@ -40,6 +46,9 @@ function fingerprint(states) {
     .join("|");
 }
 
+// Returns per-channel delivery results (e.g. {ntfy: 200}) so a silent failure
+// (ntfy rate-limits shared Cloudflare egress IPs with 429s) shows up in the
+// transition history instead of vanishing.
 async function notify(env, title, body) {
   const jobs = [];
   if (env.NTFY_TOPIC) {
@@ -48,7 +57,7 @@ async function notify(env, title, body) {
         method: "POST",
         headers: { Title: title, Priority: "high", Tags: "8ball" },
         body,
-      })
+      }).then((r) => ["ntfy", r.status], (e) => ["ntfy", String(e)])
     );
   }
   if (env.WEBHOOK_URL) {
@@ -57,10 +66,11 @@ async function notify(env, title, body) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title, body, at: new Date().toISOString() }),
-      })
+      }).then((r) => ["webhook", r.status], (e) => ["webhook", String(e)])
     );
   }
-  await Promise.allSettled(jobs);
+  const results = await Promise.all(jobs);
+  return Object.fromEntries(results);
 }
 
 async function check(env) {
@@ -85,16 +95,28 @@ async function check(env) {
     else if (total > 0) title = `bilardo.info: lineup changed (${total} live)`;
     if (title) {
       const lines = states
-        .flatMap((s) => s.matches.map((m) => `[${s.type}] M${m.table}: ${m.players.filter(Boolean).join(" vs ")}`))
+        .flatMap((s) =>
+          s.matches.map(
+            (m) =>
+              `[${s.type}] M${m.table}: ${m.players.filter(Boolean).join(" vs ")}${m.video ? ` ${m.video}` : ""}`
+          )
+        )
         .join("\n");
-      await notify(env, title, lines || "no details");
+      const delivered = await notify(env, title, lines || "no details");
       // Matches just started: kick the cloud tracker (dormant until GH_TOKEN set).
+      let dispatched = null;
       if (total > 0 && prevTotal === 0 && env.GH_TOKEN && env.GH_REPO) {
-        // If the bilardo API exposes a stream link, surface it as video_url so
-        // the workflow can act; field name TBD until observed live.
-        const first = states.flatMap((s) => s.matches)[0]?.raw || {};
-        const video_url = first.video_url || first.youtube || first.stream || null;
-        await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
+        // Per-table stream links, live tables first — the workflow picks from
+        // `videos`; `video_url` (first live stream) kept for compatibility.
+        const videos = states
+          .flatMap((s) =>
+            s.matches
+              .filter((m) => m.video)
+              .map((m) => ({ type: s.type, table: m.table, players: m.players, url: m.video, live: m.live }))
+          )
+          .sort((a, b) => Number(b.live) - Number(a.live));
+        const video_url = videos[0]?.url || null;
+        dispatched = await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
           method: "POST",
           headers: {
             authorization: `Bearer ${env.GH_TOKEN}`,
@@ -103,16 +125,75 @@ async function check(env) {
           },
           body: JSON.stringify({
             event_type: "bilardo-match",
-            client_payload: { at: now, total, video_url, states },
+            // preset: these tournament streams carry the overhead inset on the
+            // LEFT (bilardo_l in build_match.py's PRESETS).
+            client_payload: { at: now, total, video_url, videos, preset: "bilardo_l", states },
           }),
-        }).catch(() => {});
+        }).then((r) => r.status, (e) => String(e));
       }
       const history = (await env.STATE.get("history", "json")) || [];
-      history.unshift({ at: now, title, total, fp });
+      history.unshift({ at: now, title, total, fp, delivered, dispatched });
       await env.STATE.put("history", JSON.stringify(history.slice(0, 100)));
     }
   }
   await env.STATE.put("last", JSON.stringify({ at: now, fp, total, states }));
+
+  // PERMANENT MATCH REGISTRY: every broadcast id ever seen, keyed by video id.
+  // The YouTube links vanish from the API when a match ends (and the streams
+  // are often unlisted afterward) — a link not recorded while live is a match
+  // lost to the corpus. Upsert on every poll; GET /matches serves the archive.
+  const live = states.flatMap((s) =>
+    s.matches
+      .filter((m) => m.raw?.broadcast)
+      .map((m) => ({
+        id: m.raw.broadcast,
+        type: s.type,
+        table: m.table,
+        players: m.players,
+        status: m.raw.broadcast_status ?? null,
+        scores: [m.raw.player1score ?? null, m.raw.player2score ?? null],
+      }))
+  );
+  if (live.length) {
+    const seen = (await env.STATE.get("matches", "json")) || {};
+    for (const m of live) {
+      // One broadcast id = one TABLE's daily stream; matches rotate within it
+      // (observed live: same id, new player pair at 0-0). Track player-pair
+      // SESSIONS with first/last-seen times — a per-match segmentation index
+      // for the day's video, for free.
+      const sess = { players: m.players, scores: m.scores, status: m.status, first_seen: now, last_seen: now };
+      const prev = seen[m.id];
+      if (!prev) {
+        seen[m.id] = {
+          id: m.id,
+          type: m.type,
+          table: m.table,
+          url: `https://www.youtube.com/watch?v=${m.id}`,
+          first_seen: now,
+          last_seen: now,
+          sessions: [sess],
+        };
+      } else {
+        prev.last_seen = now;
+        if (!prev.sessions) {
+          // migrate a pre-sessions entry
+          prev.sessions = [{ players: prev.players, scores: prev.scores, status: prev.status, first_seen: prev.first_seen, last_seen: prev.first_seen }];
+          delete prev.players;
+          delete prev.scores;
+          delete prev.status;
+        }
+        const cur = prev.sessions[prev.sessions.length - 1];
+        if (cur && JSON.stringify(cur.players) === JSON.stringify(m.players)) {
+          cur.last_seen = now;
+          cur.scores = m.scores;
+          cur.status = m.status;
+        } else {
+          prev.sessions.push(sess);
+        }
+      }
+    }
+    await env.STATE.put("matches", JSON.stringify(seen));
+  }
   return { at: now, total, states };
 }
 
@@ -125,6 +206,12 @@ export default {
     if (url.pathname === "/history") {
       const history = (await env.STATE.get("history", "json")) || [];
       return Response.json(history);
+    }
+    if (url.pathname === "/matches") {
+      // The permanent registry: every match (broadcast id) ever witnessed.
+      const seen = (await env.STATE.get("matches", "json")) || {};
+      const list = Object.values(seen).sort((a, b) => (a.first_seen < b.first_seen ? 1 : -1));
+      return Response.json({ count: list.length, matches: list });
     }
     // live check on demand; falls back to last stored state on upstream error
     let current;

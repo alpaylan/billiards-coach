@@ -29,18 +29,49 @@ import cv2
 import scoreboard as sb
 import reconcile_banner as rb
 
-COST_SPURIOUS = 3.0
+COST_SPURIOUS = 1.6  # was 3.0: a mola (timeout) after a missed shot tracks as a
+#                      junk candidate; at 3.0 the DP preferred relabeling the
+#                      real miss as a make over marking the junk spurious
+#                      (verified against 5 hand-labeled turns on YouTube)
 COST_ICON_MIDTURN = 2.5
 COST_ICON_TURNSTART = 0.4
 COST_RUN = 2.0
 COST_SCORE_UNIT = 1.0
-SCORE_CAP = 2.0
+SCORE_CAP = 2.5
 MAX_RUN = 7
 
 
-def solve(states, side_of):
-    """states: per shot (sl, inn, sr, icon, run). Returns list of
-    ('make'|'miss'|'spurious', cue) per shot, plus the total cost."""
+def objects_moved(shot_path):
+    """How many NON-CUE balls left their rest (>2.5 cm) in this shot's track.
+    A three-cushion point requires contacting BOTH object balls — a shot where
+    fewer than two moved cannot be a make. This is the physics vote that
+    settles 'banner paid nothing' turns: the ball tracks already know the shot
+    hit nothing."""
+    cue, tracks = None, {}
+    for line in open(shot_path):
+        if line.startswith("cue "):
+            cue = line.split()[1].strip()
+        f = line.strip().split(",")
+        if len(f) == 4 and f[0] in ("white", "yellow", "red"):
+            tracks.setdefault(f[0], []).append((float(f[2]), float(f[3])))
+    n = 0
+    for c, pts in tracks.items():
+        if c == cue or not pts:
+            continue
+        x0, y0 = pts[0]
+        if max(((x - x0) ** 2 + (y - y0) ** 2) ** 0.5 for x, y in pts) > 0.025:
+            n += 1
+    return n
+
+
+COST_MAKE_IMPOSSIBLE = 6.0  # near-veto: contacting both object balls is REQUIRED to score
+
+
+def solve(states, side_of, final_score=None, moved=None):
+    """states: per shot (sl, inn, sr, icon, run). `final_score` = (sl, sr) read
+    off the POST-GAME board — it anchors the last turn, whose points otherwise
+    have no closing sample (and which may legally end on the winning make).
+    Returns list of ('make'|'miss'|'spurious', cue) per shot, plus total cost."""
     n = len(states)
     colors = ("white", "yellow")
 
@@ -87,17 +118,37 @@ def solve(states, side_of):
         for (c, r, cw, cy), (cost, _, _) in cur.items():
             e = emit(k, c, r, cw, cy)
             other = "yellow" if c == "white" else "white"
-            # make
+            # make (a track that moved <2 object balls cannot score)
             if r + 1 <= MAX_RUN:
+                phys = COST_MAKE_IMPOSSIBLE if moved is not None and moved[k] < 2 else 0.0
                 cw2, cy2 = (cw + 1, cy) if c == "white" else (cw, cy + 1)
-                push((c, r + 1, cw2, cy2), cost + e, (c, r, cw, cy), ("make", c))
+                push((c, r + 1, cw2, cy2), cost + e + phys, (c, r, cw, cy), ("make", c))
             # miss -> turn ends
             push((other, 0, cw, cy), cost + e, (c, r, cw, cy), ("miss", c))
             # spurious
             push((c, r, cw, cy), cost + e + COST_SPURIOUS, (c, r, cw, cy), ("spurious", c))
         layers.append(nxt)
 
-    end_state, (total, _, _) = min(layers[-1].items(), key=lambda kv: kv[1][0])
+    def terminal(state):
+        if not final_score or not side_of:
+            return 0.0
+        c, r, cw, cy = state
+        cum = {"white": cw, "yellow": cy}
+        exp_l = cum[next(cc for cc, s in side_of.items() if s == "left")]
+        exp_r = cum[next(cc for cc, s in side_of.items() if s == "right")]
+        fl, fr = final_score
+        cost = 0.0
+        if fl is not None:
+            cost += min(4.0, abs(fl - exp_l))
+        if fr is not None:
+            cost += min(4.0, abs(fr - exp_r))
+        return cost
+
+    end_state, (total, _, _) = min(
+        ((st, v) for st, v in layers[-1].items()),
+        key=lambda kv: kv[1][0] + terminal(kv[0]),
+    )
+    total += terminal(end_state)
     # backtrack
     actions = []
     state = end_state
@@ -132,7 +183,16 @@ def run_game(cap, gd, templates, fix):
         (c0, s0), = side_of.items()
         side_of["yellow" if c0 == "white" else "white"] = "right" if s0 == "left" else "left"
 
-    actions, total = solve(states, side_of)
+    # post-game board: sample ~25 s after the last shot for the final anchor
+    final_score = None
+    if rows:
+        cap.set(cv2.CAP_PROP_POS_MSEC, (rows[-1][0] + 25.0) * 1000)
+        ok, f = cap.read()
+        if ok:
+            fs = sb.banner_state(f, templates)
+            final_score = (fs[0], fs[2])
+    moved = [objects_moved(path) for _, _, path in rows]
+    actions, total = solve(states, side_of, final_score=final_score, moved=moved)
 
     # agreement report — re-simulate the chosen path's state exactly
     agree = {"icon_ok": 0, "icon_n": 0, "run_ok": 0, "run_n": 0}

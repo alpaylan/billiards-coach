@@ -37,6 +37,14 @@ fn preset(name: &str) -> Preset {
             interior: (25, 190, 285, 595),
             corners: "7,12 172,10 174,327 9,327",
         },
+        // 2024 "C KATEGORISI" bilardo.com.tr production (e.g. gTp4NyzEODI):
+        // same banner/clock as the 1080p preset but the overhead inset sits
+        // bottom-RIGHT; corners measured off player-free frames.
+        "2024c" => Preset {
+            inset: (1580, 360, 340, 560),
+            interior: (1620, 1875, 402, 890),
+            corners: "40,36 299,40 298,537 34,535",
+        },
         _ => Preset {
             inset: (15, 405, 290, 515),
             interior: (50, 270, 440, 880),
@@ -110,14 +118,14 @@ struct Shot {
 
 /// Pass 1: stream the full frames once; per-frame interior motion + the clock
 /// fraction at ~5 Hz. Returns (fps, per-frame motion, clock series (t, frac)).
-fn analyze(video: &str, t0: f64, t1: Option<f64>) -> (f64, Vec<u32>, Vec<(f64, f64)>) {
+fn analyze(video: &str, t0: f64, t1: Option<f64>, pname: &str) -> (f64, Vec<u32>, Vec<(f64, f64)>) {
     let (w, h, fps) = ffprobe(video);
     // The preset's inset/interior boxes are ALREADY in this resolution's absolute
     // pixels (build_match.py's PRESETS); only the scoreboard overlay geometry is
     // specified at the 720p base and scales with frame height (scoreboard.py).
     let s = h as f64 / BASE_H;
     let scale = |v: f64| (v * s).round() as usize;
-    let p = preset(if h >= 1000 { "1080p" } else { "720p" });
+    let p = preset(pname);
     let (ix0, ix1, iy0, iy1) = p.interior;
     let (cx, cy, cw, ch) = CLOCK_RING;
     let (cx, cy, cw, ch) = (scale(cx), scale(cy), scale(cw), scale(ch));
@@ -304,7 +312,7 @@ pub fn run(args: &[String]) {
     let s = h as f64 / BASE_H;
 
     eprintln!("[1/3] scanning {video} for shot-clock resets + strokes ({pname}, scale {s:.2})…");
-    let (fps, fine, clock) = analyze(&video, t0, t1);
+    let (fps, fine, clock) = analyze(&video, t0, t1, &pname);
     let mut shots = find_shots(fps, &clock, &fine);
     for sh in &mut shots {
         sh.onset += t0;

@@ -34,6 +34,15 @@ PRESETS = {
                  corners="7,12 172,10 174,327 9,327", scale=4.0),
     "1080p": dict(inset=(15, 405, 290, 515), interior=(50, 270, 440, 880),
                   corners="19,19 264,15 270,492 23,492", scale=3.0),
+    # bilardo.com.tr Gölbaşı productions (Hakan Keleş 2024 matches; 2026 daily
+    # tournament streams). Same banner/clock family as masa4; the overhead
+    # inset sits bottom-RIGHT in the 2024 videos and mid-LEFT in the 2026
+    # tournament streams. Corners are DRAFT (eyeballed from frames) — refine
+    # against recon quality on first use.
+    "bilardo_r": dict(inset=(1585, 395, 320, 520), interior=(390, 1780, 210, 890),
+                      corners="27,23 300,18 305,497 20,503", scale=3.0),
+    "bilardo_l": dict(inset=(10, 405, 295, 530), interior=(420, 1800, 170, 860),
+                      corners="28,37 262,33 266,500 25,503", scale=3.0),
 }
 
 
