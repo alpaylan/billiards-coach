@@ -20,6 +20,6 @@ pub mod sim;
 pub mod world;
 
 pub use collision::ball_ball_collision;
-pub use cushion::{Rail, han2005_rebound};
+pub use cushion::{CHAIN_RECOVERY_T, Rail, cushion_rebound, han2005_rebound, mathavan2010_rebound};
 pub use sim::{simulate_free, simulate_table};
 pub use world::simulate;

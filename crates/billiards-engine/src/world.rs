@@ -22,7 +22,7 @@ use billiards_core::{
 };
 
 use crate::collision::ball_ball_collision;
-use crate::cushion::{Rail, han2005_rebound};
+use crate::cushion::{CHAIN_RECOVERY_T, Rail, cushion_rebound};
 use crate::sim::{CONTACT_EPS, Motion, apply_transition, cushion_contact, motion_of, segment_for};
 
 /// Guard against pathological non-termination.
@@ -48,6 +48,9 @@ pub fn simulate(
     let mut raw: Vec<Vec<MotionSegment>> = vec![Vec::new(); n];
     let mut events: Vec<ContactEvent> = Vec::new();
     let mut t = 0.0;
+    // Per-ball time of the last cushion contact, for the chain-restitution
+    // recovery factor (see cushion_rebound).
+    let mut last_cushion = vec![f64::NEG_INFINITY; n];
 
     for _ in 0..MAX_EVENTS {
         let motions: Vec<Motion> = states.iter().map(|s| motion_of(*s, ball, phys)).collect();
@@ -62,7 +65,9 @@ pub fn simulate(
 
         for i in 0..n {
             let m = &motions[i];
-            if m.phase == MotionPhase::Stationary {
+            // A resting ball can still carry decaying english: its spin-stop
+            // is a real (finite-dur) transition. Only a spin-free rest is inert.
+            if m.phase == MotionPhase::Stationary && m.dur.is_infinite() {
                 continue;
             }
             consider(m.dur, Event::Transition(i, m.phase), &mut best);
@@ -109,7 +114,9 @@ pub fn simulate(
         match event {
             Event::Transition(i, phase) => apply_transition(&mut states[i], phase, ball.radius),
             Event::Cushion(i, rail) => {
-                states[i] = han2005_rebound(states[i], rail.outward_normal(), ball, phys, table.cushion_height);
+                let recovery = (1.0 - (t - last_cushion[i]) / CHAIN_RECOVERY_T).clamp(0.0, 1.0);
+                states[i] = cushion_rebound(states[i], rail.outward_normal(), ball, phys, table.cushion_height, recovery);
+                last_cushion[i] = t;
                 events.push(ContactEvent { time: t, kind: ContactKind::Cushion { ball: BallId(i as u8) } });
             }
             Event::BallBall(i, j) => {

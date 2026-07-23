@@ -15,3 +15,7 @@ pub const V_EPSILON: f64 = 1e-6;
 /// A small nonzero contact-slip speed (m/s) below which a ball is considered to
 /// be rolling without slipping rather than sliding.
 pub const SLIP_EPSILON: f64 = 1e-6;
+
+/// A small nonzero vertical spin (rad/s) below which english is treated as
+/// fully decayed and clamped to zero.
+pub const W_EPSILON: f64 = 1e-3;

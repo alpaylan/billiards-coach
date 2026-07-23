@@ -74,18 +74,57 @@ pub struct PhysicsParams {
     pub mu_slide: f64,
     /// Coefficient of rolling resistance between ball and cloth.
     pub mu_roll: f64,
-    /// Coefficient of spinning ("boring") friction that decays vertical english.
+    /// Coefficient of spinning ("boring") friction that decays vertical english
+    /// at `5·μ_spin·g/(2R)`. Default 0: on the heated match tables of the
+    /// verification corpus any added cloth decay (even pooltool's ~0.014)
+    /// measurably worsened reconstruction — the calibrated Han cushion friction
+    /// already accounts for the english lost per rebound.
     pub mu_spin: f64,
     /// Coefficient of restitution of the cushion (Han 2005 `e_c`). ~0.85 per
     /// van Balen; a calibration target for Phase 4.
     pub cushion_restitution: f64,
+    /// Speed dependence of the cushion restitution: effective
+    /// `e_c + slope·(|v_n| − 1)` (clamped to [0.3, 0.99]), so the calibrated
+    /// `cushion_restitution` keeps its meaning at 1 m/s. `0` = constant.
+    pub cushion_restitution_slope: f64,
+    /// Tangential-speed dependence of the cushion restitution: effective
+    /// `e += slope_t·|v_t|` where `v_t` is the tangential (along-rail) speed
+    /// at impact. `0` = none (default). Exists to express the fast/oblique
+    /// regime the event-local harvest measures as more elastic than the slow
+    /// perpendicular one; calibrate against cushion_events before use.
+    pub cushion_restitution_slope_t: f64,
+    /// Chain-restitution delta: a ball arriving at a cushion still disturbed
+    /// from its PREVIOUS cushion contact (< ~0.35 s ago) rebounds effectively
+    /// hotter than a settled one — measured directly on two-bounce chains
+    /// (chain-fit e_c ≈ 0.89 vs isolated ≈ 0.84, masa4_day2). Effective
+    /// `e += chain·(1 − Δt/0.35)` where Δt is time since that ball's last
+    /// cushion event. `0` = off (default): the flat single-e model.
+    pub cushion_restitution_chain: f64,
     /// Coefficient of ball–cushion friction (Han 2005 `f_c`).
     pub cushion_friction: f64,
+    /// Ball–cushion resolution: `0` uses the closed-form Han 2005 impulse,
+    /// `> 0` integrates the impact Mathavan 2010-style with that step budget —
+    /// dual contact (cushion nose + the table under the ball), rotating slip
+    /// at both, and work-based compression/restitution phases.
+    pub cushion_contact_steps: u32,
     /// Coefficient of restitution between two balls (`e_b`).
     pub ball_restitution: f64,
-    /// Coefficient of ball–ball friction (`u_b`) — governs collision-induced
-    /// and spin-induced throw.
+    /// Ball–ball friction floor `a` in the speed-dependent Alciatore curve
+    /// `u_b(v) = a + b·exp(−c·v)`, where `v` is the relative surface speed at
+    /// the contact point (m/s). Governs collision- and spin-induced throw.
+    /// With `ball_friction_b = 0` this reduces to a constant coefficient.
     pub ball_friction: f64,
+    /// Amplitude `b` of the speed-dependent part of the ball–ball friction
+    /// curve: slow, grazing contacts are much grippier than fast ones.
+    pub ball_friction_b: f64,
+    /// Decay rate `c` (s/m) of the speed-dependent ball–ball friction curve.
+    pub ball_friction_c: f64,
+    /// Ball–ball contact resolution: `0` uses the closed-form instantaneous
+    /// impulse (english-only friction), `> 0` integrates the contact through
+    /// that many impulse steps Mathavan-style — the slip direction rotates
+    /// during contact and the full 3-D surface velocity (follow/draw as well
+    /// as english) drives friction, so spin transfer between balls emerges.
+    pub ball_contact_steps: u32,
 }
 
 impl Default for PhysicsParams {
@@ -94,11 +133,24 @@ impl Default for PhysicsParams {
             g: 9.81,
             mu_slide: 0.2,
             mu_roll: 0.01,
-            mu_spin: 0.044,
+            mu_spin: 0.0,
             cushion_restitution: 0.85,
+            cushion_restitution_slope: 0.0,
+            cushion_restitution_slope_t: 0.0,
+            cushion_restitution_chain: 0.0,
             cushion_friction: 0.2,
+            cushion_contact_steps: 0,
             ball_restitution: 0.95,
+            // Constant coefficient (b = 0): Alciatore's pool-measured curve
+            // (a 9.951e-3, b 0.108, c 1.088) and softer/faster variants were
+            // all neutral-to-worse on the 607-shot labeled corpus — polished
+            // carom balls don't show the pool balls' low-speed grip, and the
+            // constant 0.06 sits mid-curve anyway. The curve stays available
+            // as a calibration target.
             ball_friction: 0.06,
+            ball_friction_b: 0.0,
+            ball_friction_c: 1.088,
+            ball_contact_steps: 0,
         }
     }
 }

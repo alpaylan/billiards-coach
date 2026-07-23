@@ -16,12 +16,12 @@
 //! **Rolling.** Rolling resistance `μ_roll · g` decelerates the center along
 //! `v̂` until it stops, the angular velocity kept consistent with rolling.
 
-use billiards_core::math::{DVec3, SLIP_EPSILON, V_EPSILON};
+use billiards_core::math::{DVec3, SLIP_EPSILON, V_EPSILON, W_EPSILON};
 use billiards_core::{
     BallSpec, BallState, MotionPhase, MotionSegment, PhysicsParams, TableSpec, Trajectory,
 };
 
-use crate::cushion::{Rail, han2005_rebound};
+use crate::cushion::{CHAIN_RECOVERY_T, Rail, cushion_rebound};
 
 /// Guard against pathological non-termination.
 pub(crate) const MAX_SEGMENTS: usize = 100_000;
@@ -41,9 +41,23 @@ pub(crate) struct Motion {
 }
 
 /// Classify a ball's current phase and the analytic motion it implies.
+///
+/// Vertical english (`ω_z`) does not enter the contact slip, so it evolves
+/// independently of the x/y dynamics: "boring" friction decays it linearly at
+/// `5·μ_spin·g/(2R)` (pooltool's model) in every phase — including a ball
+/// spinning in place — and a segment may end at spin-stop before its
+/// slide/roll phase does.
 pub(crate) fn motion_of(state: BallState, ball: &BallSpec, phys: &PhysicsParams) -> Motion {
     let slip = state.contact_slip(ball.radius);
     let speed = state.vel.length();
+
+    let wz = state.angular_vel.z;
+    let spin_rate = 5.0 * phys.mu_spin * phys.g / (2.0 * ball.radius);
+    let (spin_acc, spin_dur) = if wz.abs() > W_EPSILON && spin_rate > 0.0 {
+        (-wz.signum() * spin_rate, wz.abs() / spin_rate)
+    } else {
+        (0.0, f64::INFINITY)
+    };
 
     if slip.length() > SLIP_EPSILON {
         let a = phys.mu_slide * phys.g;
@@ -51,8 +65,9 @@ pub(crate) fn motion_of(state: BallState, ball: &BallSpec, phys: &PhysicsParams)
         Motion {
             phase: MotionPhase::Sliding,
             lin_acc: uhat * -a,
-            ang_acc: DVec3::new(-uhat.y, uhat.x, 0.0) * (5.0 * a / (2.0 * ball.radius)),
-            dur: slip.length() / (3.5 * a),
+            ang_acc: DVec3::new(-uhat.y, uhat.x, 0.0) * (5.0 * a / (2.0 * ball.radius))
+                + DVec3::new(0.0, 0.0, spin_acc),
+            dur: (slip.length() / (3.5 * a)).min(spin_dur),
         }
     } else if speed > V_EPSILON {
         let a = phys.mu_roll * phys.g;
@@ -60,21 +75,41 @@ pub(crate) fn motion_of(state: BallState, ball: &BallSpec, phys: &PhysicsParams)
         Motion {
             phase: MotionPhase::Rolling,
             lin_acc: vhat * -a,
-            ang_acc: DVec3::new(vhat.y, -vhat.x, 0.0) * (a / ball.radius),
-            dur: speed / a,
+            ang_acc: DVec3::new(vhat.y, -vhat.x, 0.0) * (a / ball.radius)
+                + DVec3::new(0.0, 0.0, spin_acc),
+            dur: (speed / a).min(spin_dur),
         }
     } else {
-        Motion { phase: MotionPhase::Stationary, lin_acc: DVec3::ZERO, ang_acc: DVec3::ZERO, dur: f64::INFINITY }
+        Motion {
+            phase: MotionPhase::Stationary,
+            lin_acc: DVec3::ZERO,
+            ang_acc: DVec3::new(0.0, 0.0, spin_acc),
+            dur: spin_dur,
+        }
     }
 }
 
-/// Apply the state change that occurs when a phase ends naturally: a sliding
-/// ball snaps onto the rolling manifold; a rolling ball stops.
+/// Apply the state change that occurs when a phase ends naturally. A segment
+/// can end for two reasons — its slide/roll phase ran out, or `ω_z` decayed to
+/// zero first — so decide from the state itself: a sliding ball whose slip has
+/// vanished snaps onto the rolling manifold, a rolling ball that ran out of
+/// speed stops, and near-zero english is clamped to exactly zero either way.
 pub(crate) fn apply_transition(state: &mut BallState, phase: MotionPhase, radius: f64) {
     match phase {
-        MotionPhase::Sliding => state.angular_vel = state.rolling_angular_vel(radius),
-        MotionPhase::Rolling => state.vel = DVec3::ZERO,
+        MotionPhase::Sliding => {
+            if state.contact_slip(radius).length() <= SLIP_EPSILON {
+                state.angular_vel = state.rolling_angular_vel(radius);
+            }
+        }
+        MotionPhase::Rolling => {
+            if state.vel.length() <= V_EPSILON {
+                state.vel = DVec3::ZERO;
+            }
+        }
         MotionPhase::Stationary => {}
+    }
+    if state.angular_vel.z.abs() <= W_EPSILON {
+        state.angular_vel.z = 0.0;
     }
 }
 
@@ -151,7 +186,9 @@ pub fn simulate_free(initial: BallState, ball: &BallSpec, phys: &PhysicsParams) 
     for _ in 0..MAX_SEGMENTS {
         let motion = motion_of(state, ball, phys);
         let segment = segment_for(state, t, &motion);
-        if motion.phase == MotionPhase::Stationary {
+        // A stationary ball may still be spinning in place (finite dur); only
+        // a spin-free rest is terminal.
+        if motion.phase == MotionPhase::Stationary && motion.dur.is_infinite() {
             segments.push(segment);
             break;
         }
@@ -175,9 +212,10 @@ pub fn simulate_table(
     let mut state = initial;
     let mut t = 0.0;
 
+    let mut last_cushion = f64::NEG_INFINITY;
     for _ in 0..MAX_SEGMENTS {
         let motion = motion_of(state, ball, phys);
-        if motion.phase == MotionPhase::Stationary {
+        if motion.phase == MotionPhase::Stationary && motion.dur.is_infinite() {
             segments.push(segment_for(state, t, &motion));
             break;
         }
@@ -188,7 +226,9 @@ pub fn simulate_table(
                 seg.t_end = t + dt;
                 let contact = seg.state_at(seg.t_end);
                 segments.push(seg);
-                state = han2005_rebound(contact, rail.outward_normal(), ball, phys, table.cushion_height);
+                let recovery = (1.0 - (t + dt - last_cushion) / CHAIN_RECOVERY_T).clamp(0.0, 1.0);
+                state = cushion_rebound(contact, rail.outward_normal(), ball, phys, table.cushion_height, recovery);
+                last_cushion = t + dt;
                 t += dt;
             }
             None => {
