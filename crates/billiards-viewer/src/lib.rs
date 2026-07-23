@@ -1011,7 +1011,7 @@ impl eframe::App for ViewerApp {
         // scaling), and a point value is predictable everywhere. Drag range
         // keeps it usable on any window; the id bump drops stale stored widths.
         egui::SidePanel::left("nav_v3")
-            .default_width(300.0)
+            .default_width(400.0)
             .width_range(180.0..=700.0)
             .show(ctx, |ui| {
             ui.add_space(6.0);
