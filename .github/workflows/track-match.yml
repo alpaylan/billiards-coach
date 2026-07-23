@@ -85,6 +85,7 @@ jobs:
         run: cargo build -p billiards-cli --features track --release
 
       - name: Download video
+        id: dl
         if: steps.cfg.outputs.skip == 'false'
         env:
           # optional: base64 of a YouTube cookies.txt — datacenter IPs are
@@ -100,6 +101,18 @@ jobs:
             echo "$YT_COOKIES" | base64 -d > /tmp/cookies.txt
             ARGS+=(--cookies /tmp/cookies.txt)
           fi
+          # With t0/t1 set, download ONLY that section: the daily table streams
+          # run ~12h (a full download blows the runner's disk and the job
+          # timeout), and per-match sections are what the watcher registry's
+          # session index hands us. The cut file starts at 0, so tracking must
+          # then run without offsets — cfg exposes cut=true for the next step.
+          T0="${{ steps.cfg.outputs.t0 }}"; T1="${{ steps.cfg.outputs.t1 }}"
+          if [ -n "$T0" ] || [ -n "$T1" ]; then
+            ARGS+=(--download-sections "*${T0:-0}-${T1:-inf}" --force-keyframes-at-cuts)
+            echo "cut=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cut=false" >> "$GITHUB_OUTPUT"
+          fi
           yt-dlp "${ARGS[@]}" "${{ steps.cfg.outputs.url }}"
           ffprobe -v error -show_entries format=duration -of csv=p=0 match.mp4
 
@@ -109,8 +122,11 @@ jobs:
           ARGS=(--match match.mp4 --model python/detector.onnx
                 --out-root out --name "${{ steps.cfg.outputs.name }}"
                 --preset "${{ steps.cfg.outputs.preset }}")
-          [ -n "${{ steps.cfg.outputs.t0 }}" ] && ARGS+=(--t0 "${{ steps.cfg.outputs.t0 }}")
-          [ -n "${{ steps.cfg.outputs.t1 }}" ] && ARGS+=(--t1 "${{ steps.cfg.outputs.t1 }}")
+          # A section-downloaded file already starts at t0 — no tracker offsets.
+          if [ "${{ steps.dl.outputs.cut }}" != "true" ]; then
+            [ -n "${{ steps.cfg.outputs.t0 }}" ] && ARGS+=(--t0 "${{ steps.cfg.outputs.t0 }}")
+            [ -n "${{ steps.cfg.outputs.t1 }}" ] && ARGS+=(--t1 "${{ steps.cfg.outputs.t1 }}")
+          fi
           [ "${{ github.event.inputs.no_frames }}" = "true" ] && ARGS+=(--no-frames)
           ./target/release/billiards track "${ARGS[@]}"
 
