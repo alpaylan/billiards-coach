@@ -127,7 +127,17 @@ async function check(env) {
             event_type: "bilardo-match",
             // preset: these tournament streams carry the overhead inset on the
             // LEFT (bilardo_l in build_match.py's PRESETS).
-            client_payload: { at: now, total, video_url, videos, preset: "bilardo_l", states },
+            client_payload: {
+              at: now,
+              total,
+              video_url,
+              videos,
+              preset: "bilardo_l",
+              // Unique per dispatch: auto-runs previously all defaulted to
+              // name "match" and collided on artifacts/checkpoints.
+              name: `auto_${now.slice(0, 10)}_${now.slice(11, 16).replace(":", "")}`,
+              states,
+            },
           }),
         }).then((r) => r.status, (e) => String(e));
       }
