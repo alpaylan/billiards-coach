@@ -512,27 +512,34 @@ def export_for_fit(tracks, shots, fps, out_path, shot_idx,
         return sum(np.hypot(motion[c][i+1][0]-motion[c][i][0], motion[c][i+1][1]-motion[c][i][1])
                    for i in range(a, b) if motion[c][i] and motion[c][i+1])
 
-    idx = shot_idx if shot_idx is not None else max(
-        range(len(shots)), key=lambda k: max(travel(*shots[k], c) for c in COLORS))
-    a, b, clean = _rest_bounds(motion, *shots[idx], fps)
-
-    # A valid reconstruction needs the balls at REST at t=0 (the starting layout).
-    # If there was no still frame before the stroke — e.g. the recording began
-    # mid-shot — skip this shot rather than fit garbage from a moving start.
-    #
-    # QUASI-REST fallback: players in a scoring rhythm often stroke while a
-    # ball from their previous shot still creeps (<12 cm/s). Strict rest never
-    # occurs, the window used to be discarded, and the lost shots were exactly
-    # the best player's makes (measured on a 30-5 match: ~9 of the winner's
-    # shots dropped). A slow drift start costs the scene a centimeter-scale
-    # layout error — far better than losing the point entirely. QUASI_REST=0
-    # disables.
-    if not clean and os.environ.get("QUASI_REST", "1") != "0":
-        a, b, clean = _rest_bounds(motion, *shots[idx], fps, v_rest=0.12)
+    # Segment choice: the max-travel interval is usually the shot — but in
+    # rhythm play the window opens while the PREVIOUS shot's balls still roll,
+    # and that tail is often the biggest interval in the window. Its onset
+    # reaches back to frame 0, so it can never have a rest start, and blindly
+    # picking it discarded the real shot sitting later in the window (measured
+    # on a 30-5 match: 12 windows lost, mostly the winner's rhythm makes). So:
+    # walk candidates in descending travel and take the first with a clean —
+    # or quasi-clean (pre-stroke drift ≤0.12 m/s; QUASI_REST=0 disables) —
+    # rest start, skipping trivial-motion segments (<15% of the biggest).
+    if shot_idx is not None:
+        candidates = [shot_idx]
+    else:
+        tr = {k: max(travel(*shots[k], c) for c in COLORS) for k in range(len(shots))}
+        floor = 0.15 * max(tr.values())
+        candidates = sorted((k for k in tr if tr[k] >= floor), key=lambda k: -tr[k])
+    idx, a, b, clean = None, 0, 0, False
+    for k in candidates:
+        a, b, clean = _rest_bounds(motion, *shots[k], fps)
+        if not clean and os.environ.get("QUASI_REST", "1") != "0":
+            a, b, clean = _rest_bounds(motion, *shots[k], fps, v_rest=0.12)
+            if clean:
+                print(f"      shot {k}: quasi-rest start (pre-stroke drift <=0.12 m/s)")
         if clean:
-            print(f"      shot {idx}: quasi-rest start (pre-stroke drift <=0.12 m/s)")
-    if not clean:
-        print(f"skip shot {idx}: no at-rest start (recording began mid-shot)")
+            idx = k
+            break
+        print(f"      shot {k}: no at-rest start, trying next segment")
+    if idx is None:
+        print("skip: no segment with an at-rest start (window began mid-shot)")
         return False
 
     # Cue = the player ball (white/yellow) that was STRUCK — i.e. the one that
