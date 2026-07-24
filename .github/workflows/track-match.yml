@@ -5,12 +5,28 @@
 #     tracked/annotated/calibrated match as a workflow artifact + an ntfy push.
 #   * repository_dispatch (type bilardo-match) — fired by the bilardo.info
 #     watcher Worker when live matches appear. Runs only if the payload carries
-#     a video_url (the bilardo API's stream-link field mapping is confirmed the
-#     first time a real tournament goes live); otherwise exits gracefully —
-#     the watcher's ntfy push already told a human.
+#     a video_url; otherwise exits gracefully — the watcher's ntfy push already
+#     told a human.
 #
-# No secrets required. Known risk: YouTube sometimes bot-blocks datacenter IPs
-# for yt-dlp; if downloads fail here, run locally or add a cookies secret.
+# Structure: TWO jobs, because download + tracking of a match section does not
+# fit one 6-hour runner job (YouTube throttles datacenter downloads to roughly
+# streaming pace; a 185-min section took ~100 min to pull, and tracking it
+# ~3.5 h — measured 2026-07-23, run 30048279780 cancelled at the ceiling).
+#
+#   download — fetch the section ONCE and persist it as a `video-<name>`
+#              artifact. Reruns and retries reuse the artifact instead of
+#              touching YouTube again (the fragile, cookie-dependent link).
+#   track    — consume the artifact, track/annotate/calibrate/bundle. The
+#              shot outputs are checkpointed to the Actions cache on every
+#              attempt (explicit save on always()), and the tracker resumes
+#              past already-exported shots — a timeout costs the remainder,
+#              not the whole job.
+#
+# Secrets: YT_COOKIES (base64 Netscape cookies, youtube/google domains only —
+# the full jar exceeds the 48 KB secret cap). Must be FRESH: stale cookies get
+# "Invalid data" media denials. Refresh:
+#   yt-dlp --cookies-from-browser chrome --cookies /tmp/yt.txt --skip-download <url>
+#   awk 'NR<=4 || $1 ~ /(youtube|google)/' /tmp/yt.txt | base64 | gh secret set YT_COOKIES
 
 name: track-match
 
@@ -42,9 +58,16 @@ on:
     types: [bilardo-match]
 
 jobs:
-  track:
+  download:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 300
+    outputs:
+      skip: ${{ steps.cfg.outputs.skip }}
+      name: ${{ steps.cfg.outputs.name }}
+      preset: ${{ steps.cfg.outputs.preset }}
+      t0: ${{ steps.cfg.outputs.t0 }}
+      t1: ${{ steps.cfg.outputs.t1 }}
+      cut: ${{ steps.cfg.outputs.cut }}
     steps:
       - name: Resolve inputs
         id: cfg
@@ -61,37 +84,39 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+          # A sectioned download starts at 0, so tracking must drop offsets.
+          if [ -n "$T0" ] || [ -n "$T1" ]; then echo "cut=true" >> "$GITHUB_OUTPUT"; else echo "cut=false" >> "$GITHUB_OUTPUT"; fi
           {
             echo "url=$URL"; echo "name=$NAME"; echo "preset=$PRESET"
             echo "t0=$T0"; echo "t1=$T1"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - name: Reuse existing video artifact if present
+        id: reuse
         if: steps.cfg.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=video-${{ steps.cfg.outputs.name }}&per_page=10" \
+               --jq '[.artifacts[] | select(.expired == false)][0].id // empty')
+          if [ -n "$ID" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "video artifact already exists (id $ID) — skipping YouTube entirely"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install ffmpeg + yt-dlp (+deno for YouTube extraction)
-        if: steps.cfg.outputs.skip == 'false'
+        if: steps.cfg.outputs.skip == 'false' && steps.reuse.outputs.found == 'false'
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
           pipx install yt-dlp
           curl -fsSL https://deno.land/install.sh | sh -s -- -y >/dev/null
           echo "$HOME/.deno/bin" >> "$GITHUB_PATH"
 
-      - uses: Swatinem/rust-cache@v2
-        if: steps.cfg.outputs.skip == 'false'
-
-      - name: Build tracker (static ONNX Runtime)
-        if: steps.cfg.outputs.skip == 'false'
-        run: cargo build -p billiards-cli --features track --release
-
       - name: Download video
-        id: dl
-        if: steps.cfg.outputs.skip == 'false'
+        if: steps.cfg.outputs.skip == 'false' && steps.reuse.outputs.found == 'false'
         env:
-          # optional: base64 of a YouTube cookies.txt — datacenter IPs are
-          # frequently bot-checked without one. Locally:
-          #   yt-dlp --cookies-from-browser chrome --cookies yt.txt --skip-download <any yt url>
-          #   base64 -i yt.txt | gh secret set YT_COOKIES -R alpaylan/billiards-coach
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           ARGS=(-f "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b"
@@ -104,52 +129,96 @@ jobs:
           # With t0/t1 set, download ONLY that section: the daily table streams
           # run ~12h (a full download blows the runner's disk and the job
           # timeout), and per-match sections are what the watcher registry's
-          # session index hands us. The cut file starts at 0, so tracking must
-          # then run without offsets — cfg exposes cut=true for the next step.
+          # session index hands us.
           T0="${{ steps.cfg.outputs.t0 }}"; T1="${{ steps.cfg.outputs.t1 }}"
           if [ -n "$T0" ] || [ -n "$T1" ]; then
             ARGS+=(--download-sections "*${T0:-0}-${T1:-inf}" --force-keyframes-at-cuts)
-            echo "cut=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "cut=false" >> "$GITHUB_OUTPUT"
           fi
           yt-dlp "${ARGS[@]}" "${{ steps.cfg.outputs.url }}"
           ffprobe -v error -show_entries format=duration -of csv=p=0 match.mp4
 
+      - name: Persist video artifact
+        if: steps.cfg.outputs.skip == 'false' && steps.reuse.outputs.found == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-${{ steps.cfg.outputs.name }}
+          path: match.mp4
+          retention-days: 5
+          compression-level: 0
+
+  track:
+    needs: download
+    if: needs.download.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch video artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=video-${{ needs.download.outputs.name }}&per_page=10" \
+               --jq '[.artifacts[] | select(.expired == false)][0].id')
+          gh api "repos/${{ github.repository }}/actions/artifacts/$ID/zip" > video.zip
+          unzip -o video.zip && rm video.zip
+          ls -la match.mp4
+
+      - name: Install ffmpeg + python deps
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          pip install -q numpy opencv-python-headless
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build tracker (static ONNX Runtime)
+        run: cargo build -p billiards-cli --features track --release
+
+      - name: Restore tracking checkpoint
+        uses: actions/cache/restore@v4
+        with:
+          path: out/${{ needs.download.outputs.name }}
+          key: track-out-${{ needs.download.outputs.name }}-${{ github.run_id }}
+          restore-keys: |
+            track-out-${{ needs.download.outputs.name }}-
+
       - name: Track match
-        if: steps.cfg.outputs.skip == 'false'
         run: |
           ARGS=(--match match.mp4 --model python/detector.onnx
-                --out-root out --name "${{ steps.cfg.outputs.name }}"
-                --preset "${{ steps.cfg.outputs.preset }}")
+                --out-root out --name "${{ needs.download.outputs.name }}"
+                --preset "${{ needs.download.outputs.preset }}")
           # A section-downloaded file already starts at t0 — no tracker offsets.
-          if [ "${{ steps.dl.outputs.cut }}" != "true" ]; then
-            [ -n "${{ steps.cfg.outputs.t0 }}" ] && ARGS+=(--t0 "${{ steps.cfg.outputs.t0 }}")
-            [ -n "${{ steps.cfg.outputs.t1 }}" ] && ARGS+=(--t1 "${{ steps.cfg.outputs.t1 }}")
+          if [ "${{ needs.download.outputs.cut }}" != "true" ]; then
+            [ -n "${{ needs.download.outputs.t0 }}" ] && ARGS+=(--t0 "${{ needs.download.outputs.t0 }}")
+            [ -n "${{ needs.download.outputs.t1 }}" ] && ARGS+=(--t1 "${{ needs.download.outputs.t1 }}")
           fi
           [ "${{ github.event.inputs.no_frames }}" = "true" ] && ARGS+=(--no-frames)
           ./target/release/billiards track "${ARGS[@]}"
 
+      - name: Save tracking checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: out/${{ needs.download.outputs.name }}
+          key: track-out-${{ needs.download.outputs.name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Annotate make/miss from scoreboard (Python, best-effort)
-        if: steps.cfg.outputs.skip == 'false'
         run: |
-          pip install -q numpy opencv-python-headless
-          cd python && python3 annotate_results.py ../match.mp4 "../out/${{ steps.cfg.outputs.name }}" || true
+          cd python && python3 annotate_results.py ../match.mp4 "../out/${{ needs.download.outputs.name }}" || true
 
       - name: Calibrate physics + verify
-        if: steps.cfg.outputs.skip == 'false'
         run: |
-          cargo run -p billiards-solver --example calibrate_match --release -- "out/${{ steps.cfg.outputs.name }}" || true
-          cargo run -p billiards-solver --example verify_match --release -- "out/${{ steps.cfg.outputs.name }}" | tee out/verify.txt
+          cargo run -p billiards-solver --example calibrate_match --release -- "out/${{ needs.download.outputs.name }}" || true
+          cargo run -p billiards-solver --example verify_match --release -- "out/${{ needs.download.outputs.name }}" | tee out/verify.txt
 
       - name: Build web bundle (per-shot MP4s)
-        if: steps.cfg.outputs.skip == 'false' && github.event.inputs.no_frames != 'true'
+        if: github.event.inputs.no_frames != 'true'
         run: |
           python3 - <<'EOF'
           import json, os, sys
           sys.path.insert(0, 'python')
           from publish_bundle import publish_game
-          name = "${{ steps.cfg.outputs.name }}"
+          name = "${{ needs.download.outputs.name }}"
           n = publish_game('out', name, f'bundle/{name}')
           shots = json.load(open(f'bundle/{name}/shots.json'))
           made = sum(1 for s in shots if s.get('result') == 'make')
@@ -160,19 +229,18 @@ jobs:
           EOF
 
       - name: Upload artifact
-        if: steps.cfg.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.cfg.outputs.name }}
+          name: ${{ needs.download.outputs.name }}
           path: |
             out/
             bundle/
           retention-days: 30
 
       - name: Notify
-        if: always() && steps.cfg.outputs.skip == 'false'
+        if: always()
         run: |
-          N=$(ls out/${{ steps.cfg.outputs.name }}/*.shot 2>/dev/null | wc -l)
+          N=$(ls out/${{ needs.download.outputs.name }}/*.shot 2>/dev/null | wc -l)
           curl -s -X POST "https://ntfy.sh/bilardo-watch-95271fa2aa3f" \
-            -H "Title: track-match ${{ job.status }}: ${{ steps.cfg.outputs.name }}" \
-            -d "$N shots tracked. Artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -H "Title: track-match ${{ job.status }}: ${{ needs.download.outputs.name }}" \
+            -d "$N shots tracked. Artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true

@@ -337,10 +337,26 @@ pub fn run(args: &[String]) {
     let mut stroke_times: Vec<f64> = Vec::new();
     for (k, sh) in shots.iter().enumerate() {
         let dir = format!("{frames_root}/shot_{k:02}");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("frames dir");
         let clip_t0 = (sh.onset - PAD_PRE).max(0.0);
         let clip_end = (sh.settle + PAD_POST).max(sh.onset + 11.5);
+        // RESUME: a previous (interrupted) run already exported this shot —
+        // segmentation is deterministic, so window k maps to the same clip.
+        // Skip detection+tracking (the expensive part); frames are still
+        // (re-)extracted below because the web bundle needs them and they are
+        // too large to checkpoint.
+        let out_path = format!("{shots_dir}/shot_{k:02}.shot");
+        let resumed = std::fs::read_to_string(&out_path).ok();
+        if let Some(text) = &resumed {
+            let field = |key: &str| -> Option<f64> {
+                text.lines().find_map(|l| l.strip_prefix(key)?.trim().parse().ok())
+            };
+            if let Some(v) = field("video_t0 ") {
+                stroke_times.push(v + shot_start_frame(text) as f64 / fps);
+            }
+            ok += 1;
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("frames dir");
         let status = Command::new("ffmpeg")
             .args(["-nostdin", "-loglevel", "error", "-ss", &format!("{clip_t0}"),
                    "-i", &video, "-t", &format!("{}", clip_end - clip_t0),
@@ -349,7 +365,10 @@ pub fn run(args: &[String]) {
             .status()
             .expect("ffmpeg extract");
         let outcome;
-        if !status.success() {
+        if let Some(_) = &resumed {
+            eprintln!("      shot_{k:02}: resumed (already exported)");
+            outcome = "resumed";
+        } else if !status.success() {
             eprintln!("      shot_{k:02}: ffmpeg extract failed");
             outcome = "extract_failed";
         } else {
